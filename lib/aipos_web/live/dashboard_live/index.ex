@@ -21,6 +21,7 @@ defmodule AiposWeb.DashboardLive.Index do
   def render(assigns) do
     ~H"""
     <div class="flex h-screen bg-gray-100">
+      <!-- Sidebar -->
       <.live_component
         module={AiposWeb.Sidebar}
         id="sidebar"
@@ -28,8 +29,10 @@ defmodule AiposWeb.DashboardLive.Index do
         current_organization={@current_organization}
         active_page={@active_page}
       />
-
+      
+    <!-- Main Content -->
       <div class="flex-1 pl-64">
+        <!-- Header -->
         <header class="bg-white shadow">
           <div class="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between">
@@ -52,13 +55,15 @@ defmodule AiposWeb.DashboardLive.Index do
             </div>
           </div>
         </header>
-
+        
+    <!-- Main Content -->
         <main class="mx-auto max-w-7xl py-6 px-4 sm:px-6 lg:px-8">
+          <!-- Quick Stats -->
           <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
             <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
               <dt class="truncate text-sm font-medium text-gray-500">Today's Sales</dt>
               <dd class="mt-1 text-3xl font-semibold tracking-tight text-gray-900">
-                ${@today_sales.amount}
+                KSh {@today_sales.amount}
               </dd>
               <dd class="mt-1 flex items-center text-sm">
                 <span class={"#{if @today_sales.trend > 0, do: "text-green-600", else: "text-red-600"} font-semibold"}>
@@ -84,7 +89,7 @@ defmodule AiposWeb.DashboardLive.Index do
             <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
               <dt class="truncate text-sm font-medium text-gray-500">Average Order Value</dt>
               <dd class="mt-1 text-3xl font-semibold tracking-tight text-gray-900">
-                ${@sales_stats.avg_order}
+                KSh {@sales_stats.avg_order}
               </dd>
               <dd class="mt-1 flex items-center text-sm">
                 <span class={"#{if @sales_stats.avg_order_trend > 0, do: "text-green-600", else: "text-red-600"} font-semibold"}>
@@ -104,7 +109,8 @@ defmodule AiposWeb.DashboardLive.Index do
               </dd>
             </div>
           </div>
-
+          
+    <!-- Recent Sales & Top Products -->
           <div class="mt-8 grid grid-cols-1 gap-5 lg:grid-cols-2">
             <!-- Recent Sales -->
             <div class="overflow-hidden rounded-lg bg-white shadow">
@@ -158,7 +164,7 @@ defmodule AiposWeb.DashboardLive.Index do
                                 {sale.items} items
                               </td>
                               <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                                ${sale.total}
+                                KSh {sale.total}
                               </td>
                               <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-0">
                                 <a href="#" class="text-blue-600 hover:text-blue-900">View</a>
@@ -194,7 +200,7 @@ defmodule AiposWeb.DashboardLive.Index do
                         </div>
                         <div class="text-right">
                           <p class="text-sm font-medium text-gray-900">{product.sold} sold</p>
-                          <p class="text-sm text-gray-500">${product.revenue}</p>
+                          <p class="text-sm text-gray-500">KSh {product.revenue}</p>
                         </div>
                       </li>
                     <% end %>
@@ -300,16 +306,13 @@ defmodule AiposWeb.DashboardLive.Index do
   defp stock_status_color(_), do: "bg-gray-100 text-gray-800"
 
   defp get_organization(user) do
-    %{
-      id: 1,
-      name: "SuperMart Grocers",
-      logo: nil
-    }
+    Aipos.Organizations.get_organization!(user.organization_id)
+    |> IO.inspect()
   end
 
   defp generate_today_sales do
     %{
-      amount: 1_236.45,
+      amount: "156,890",
       trend: 12.5,
       transactions: 42,
       transactions_trend: 8.3
@@ -318,21 +321,21 @@ defmodule AiposWeb.DashboardLive.Index do
 
   defp generate_recent_sales do
     [
-      %{id: "10392", time: "Just now", items: 5, total: "78.65"},
-      %{id: "10391", time: "5 min ago", items: 2, total: "25.50"},
-      %{id: "10390", time: "20 min ago", items: 10, total: "152.30"},
-      %{id: "10389", time: "1 hour ago", items: 3, total: "45.80"},
-      %{id: "10388", time: "2 hours ago", items: 7, total: "98.25"}
+      %{id: "10392", time: "Just now", items: 5, total: "7,865"},
+      %{id: "10391", time: "5 min ago", items: 2, total: "2,550"},
+      %{id: "10390", time: "20 min ago", items: 10, total: "15,230"},
+      %{id: "10389", time: "1 hour ago", items: 3, total: "4,580"},
+      %{id: "10388", time: "2 hours ago", items: 7, total: "9,825"}
     ]
   end
 
   defp generate_top_products do
     [
-      %{name: "Fresh Milk 1L", category: "Dairy", sold: 32, revenue: "128.00"},
-      %{name: "Whole Wheat Bread", category: "Bakery", sold: 28, revenue: "84.00"},
-      %{name: "Organic Eggs (12pk)", category: "Produce", sold: 25, revenue: "112.50"},
-      %{name: "Sliced Cheese 500g", category: "Dairy", sold: 22, revenue: "110.00"},
-      %{name: "Bananas 1kg", category: "Produce", sold: 20, revenue: "40.00"}
+      %{name: "Fresh Milk 1L", category: "Dairy", sold: 32, revenue: "12,800"},
+      %{name: "Whole Wheat Bread", category: "Bakery", sold: 28, revenue: "8,400"},
+      %{name: "Organic Eggs (12pk)", category: "Produce", sold: 25, revenue: "11,250"},
+      %{name: "Sliced Cheese 500g", category: "Dairy", sold: 22, revenue: "11,000"},
+      %{name: "Bananas 1kg", category: "Produce", sold: 20, revenue: "4,000"}
     ]
   end
 
@@ -348,7 +351,7 @@ defmodule AiposWeb.DashboardLive.Index do
 
   defp generate_sales_stats do
     %{
-      avg_order: 36.50,
+      avg_order: "3,650",
       avg_order_trend: 5.2
     }
   end
