@@ -26,6 +26,14 @@ defmodule Aipos.Accounts do
     Repo.get_by(User, email: email)
   end
 
+  def update_user_organization(user, organization_id) do
+    changeset =
+      user
+      |> User.user_update_changeset(%{organization_id: organization_id})
+
+    Repo.update(changeset)
+  end
+
   @doc """
   Gets a user by email and password.
 

@@ -19,8 +19,6 @@ defmodule AiposWeb.Router do
 
   scope "/", AiposWeb do
     pipe_through :browser
-
-    get "/", PageController, :home
   end
 
   # Other scopes may use custom stacks.
@@ -66,6 +64,7 @@ defmodule AiposWeb.Router do
 
     live_session :require_authenticated_user,
       on_mount: [{AiposWeb.UserAuth, :ensure_authenticated}] do
+      live "/create_organization", OrganizationLive.Create, :index
       live "/organizations", OrganizationLive.Index, :index
       live "/organizations/new", OrganizationLive.Index, :new
       live "/organizations/:id/edit", OrganizationLive.Index, :edit
@@ -91,6 +90,7 @@ defmodule AiposWeb.Router do
 
     live_session :current_user,
       on_mount: [{AiposWeb.UserAuth, :mount_current_user}] do
+      live "/", LandingLive.Index
       live "/users/confirm/:token", UserConfirmationLive, :edit
       live "/users/confirm", UserConfirmationInstructionsLive, :new
     end

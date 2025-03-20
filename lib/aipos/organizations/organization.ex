@@ -8,7 +8,9 @@ defmodule Aipos.Organizations.Organization do
     field :logo, :string
     field :name, :string
     field :phone, :string
-
+    field :description, :string
+    belongs_to :created_by, Aipos.Accounts.User, foreign_key: :created_by_id
+    has_many :users, Aipos.Accounts.User
     timestamps(type: :utc_datetime)
   end
 

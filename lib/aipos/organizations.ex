@@ -21,6 +21,14 @@ defmodule Aipos.Organizations do
     Repo.all(Organization)
   end
 
+  def get_user_organizations(user_id) do
+    query =
+      from o in Organization,
+        where: o.user_id == ^user_id
+
+    Repo.all(query)
+  end
+
   @doc """
   Gets a single organization.
 

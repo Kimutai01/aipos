@@ -89,6 +89,7 @@ defmodule AiposWeb do
       import Phoenix.HTML
       # Core UI components
       import AiposWeb.CoreComponents
+      import AiposWeb.Landing
 
       # Shortcut for generating JS commands
       alias Phoenix.LiveView.JS
