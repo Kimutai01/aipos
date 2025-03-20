@@ -62,7 +62,7 @@ defmodule AiposWeb.Sidebar do
 
             <li>
               <a
-                href="/pos/session/new"
+                href="/start_sale"
                 class={
                   active_class(
                     @active_page == "new_session",
@@ -74,10 +74,70 @@ defmodule AiposWeb.Sidebar do
                 <span>Start Sale Session</span>
               </a>
             </li>
+            <!-- Add this after the "Inventory" item and before the "Management" section -->
+            <li>
+              <a
+                href="/customers"
+                class={
+                  active_class(
+                    @active_page == "customers",
+                    "flex items-center py-2 px-4 text-white hover:bg-gray-700 rounded-lg"
+                  )
+                }
+              >
+                <Heroicons.icon name="user-group" type="solid" class="h-5 w-5 mr-3 text-teal-400" />
+                <span>Customers</span>
+              </a>
+            </li>
 
             <li>
               <a
-                href="/pos/sales"
+                href="/promotions"
+                class={
+                  active_class(
+                    @active_page == "promotions",
+                    "flex items-center py-2 px-4 text-white hover:bg-gray-700 rounded-lg"
+                  )
+                }
+              >
+                <Heroicons.icon name="gift" type="solid" class="h-5 w-5 mr-3 text-amber-400" />
+                <span>Promotions</span>
+              </a>
+            </li>
+
+            <li>
+              <a
+                href="/suppliers"
+                class={
+                  active_class(
+                    @active_page == "suppliers",
+                    "flex items-center py-2 px-4 text-white hover:bg-gray-700 rounded-lg"
+                  )
+                }
+              >
+                <Heroicons.icon name="truck" type="solid" class="h-5 w-5 mr-3 text-emerald-400" />
+                <span>Suppliers</span>
+              </a>
+            </li>
+
+            <li>
+              <a
+                href="/cash_management"
+                class={
+                  active_class(
+                    @active_page == "cash_management",
+                    "flex items-center py-2 px-4 text-white hover:bg-gray-700 rounded-lg"
+                  )
+                }
+              >
+                <Heroicons.icon name="banknotes" type="solid" class="h-5 w-5 mr-3 text-green-400" />
+                <span>Cash Management</span>
+              </a>
+            </li>
+
+            <li>
+              <a
+                href="/sales"
                 class={
                   active_class(
                     @active_page == "sales",
@@ -135,7 +195,7 @@ defmodule AiposWeb.Sidebar do
           <ul class="space-y-1">
             <li>
               <a
-                href="/users"
+                href="/manage_users"
                 class={
                   active_class(
                     @active_page == "users",

@@ -24,7 +24,7 @@ defmodule AiposWeb.UserSessionController do
     if user = Accounts.get_user_by_email_and_password(email, password) do
       if is_nil(user.organization_id) or user.organization_id == "" do
         conn
-        |> put_session(:user_return_to, "/organizations/new")
+        |> put_session(:user_return_to, "/create_organization")
         |> put_flash(:info, info)
         |> UserAuth.log_in_user(user, user_params)
       else

@@ -6,6 +6,7 @@ defmodule Aipos.Accounts.User do
     field :email, :string
     field :password, :string, virtual: true, redact: true
     field :hashed_password, :string, redact: true
+    field :role, :string, default: "admin"
     belongs_to :organization, Aipos.Organizations.Organization
     field :current_password, :string, virtual: true, redact: true
     field :confirmed_at, :utc_datetime
@@ -38,7 +39,7 @@ defmodule Aipos.Accounts.User do
   """
   def registration_changeset(user, attrs, opts \\ []) do
     user
-    |> cast(attrs, [:email, :password])
+    |> cast(attrs, [:email, :password, :role])
     |> validate_email(opts)
     |> validate_password(opts)
   end

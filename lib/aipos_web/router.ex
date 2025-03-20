@@ -65,6 +65,15 @@ defmodule AiposWeb.Router do
     live_session :require_authenticated_user,
       on_mount: [{AiposWeb.UserAuth, :ensure_authenticated}] do
       live "/dashboard", DashboardLive.Index, :index
+      live "/manage_users", Users.Staff
+      live "/users/staff/new", Users.Staff, :new
+      live "/users/staff/:id/edit", Users.Staff, :edit
+      live "/start_sale", Live.Sale.Start
+      live "/sales", Sale.Sales
+      live "/cash_management", CashManagementLive.Index
+      live "/suppliers", SuppliersLive.Index
+      live "/promotions", PromotionsLive.Index
+      live "/customers", CustomersLive.Index
       live "/create_organization", OrganizationLive.Create, :index
       live "/organizations", OrganizationLive.Index, :index
       live "/organizations/new", OrganizationLive.Index, :new
