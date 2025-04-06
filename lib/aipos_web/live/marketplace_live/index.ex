@@ -212,12 +212,15 @@ defmodule AiposWeb.MarketplaceLive.Index do
                 items: socket.assigns.cart_items,
                 subtotal: socket.assigns.total_amount,
                 shipping: socket.assigns.shipping_cost,
-                total: Decimal.add(socket.assigns.total_amount, socket.assigns.shipping_cost),
+                total_amount:
+                  Decimal.add(socket.assigns.total_amount, socket.assigns.shipping_cost),
                 customer: socket.assigns.guest_customer,
                 status: "pending",
                 payment_method: socket.assigns.payment_method,
                 transaction_id: now
               }
+
+              IO.inspect(sale_params, label: "Sale Params")
 
               case Aipos.Sales.create_sale(sale_params) do
                 {:ok, sale} ->
@@ -230,7 +233,7 @@ defmodule AiposWeb.MarketplaceLive.Index do
                       quantity: item.quantity,
                       price: item.price,
                       subtotal: item.subtotal,
-                      organization_id: socket.assigns.current_user.organization_id
+                      organization_id: socket.assigns.selected_organization.id
                     }
 
                     {:ok, _sale_item} = Aipos.Sales.create_sale_item(item_params)

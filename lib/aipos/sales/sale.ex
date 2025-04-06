@@ -10,6 +10,7 @@ defmodule Aipos.Sales.Sale do
     field :total_amount, :decimal, default: Decimal.new(0)
     field :paid_at, :utc_datetime
     field :transaction_id, :string
+    field :subtotal, :decimal, default: Decimal.new(0)
     # field :register_id, :id
     # field :cashier_id, :id
     field :customer_id, :id
@@ -32,6 +33,7 @@ defmodule Aipos.Sales.Sale do
       :status,
       :register_id,
       :cashier_id,
+      :subtotal,
       # :customer_id,
       :organization_id,
       :transaction_id,

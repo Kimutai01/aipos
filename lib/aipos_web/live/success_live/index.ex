@@ -18,7 +18,8 @@ defmodule AiposWeb.SuccessLive.Index do
          socket
          |> assign(:sale, sale)
          |> assign(:sale_items, sale_items)
-         |> assign(:loading, false)}
+         |> assign(:loading, false)
+         |> IO.inspect(label: "Sale and Sale Items")}
 
       {:error, _reason} ->
         {:noreply,
@@ -158,11 +159,21 @@ defmodule AiposWeb.SuccessLive.Index do
                           </td>
                         </tr>
                       <% end %>
+                      <%!-- shipping of 250 always --%>
+
+                      <tr class="bg-gray-50">
+                        <td colspan="3" class="px-4 py-3 text-sm font-medium text-gray-900 text-right">
+                          Shipping:
+                        </td>
+                        <td class="px-4 py-3 text-sm font-medium text-gray-900 text-right">
+                          KSh 250
+                        </td>
+                      </tr>
                     </tbody>
                     <tfoot class="bg-gray-50">
                       <tr>
                         <td colspan="3" class="px-4 py-3 text-sm font-medium text-gray-900 text-right">
-                          Subtotal:
+                          Total:
                         </td>
                         <td class="px-4 py-3 text-sm font-medium text-gray-900 text-right">
                           KSh {Decimal.to_string(@sale.total_amount)}

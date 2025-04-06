@@ -16,9 +16,16 @@ defmodule AiposWeb.Landing do
             </.link>
 
             <div class="flex items-center space-x-4">
+              <%!-- marketplace button --%>
+              <.link
+                navigate="/marketplace"
+                class="text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors duration-200 flex items-center bg-purple-600"
+              >
+                Marketplace
+              </.link>
               <%= if @current_user do %>
                 <.link
-                  navigate="/businesses"
+                  navigate="/dashboard"
                   class="b text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors duration-200 flex items-center bg-purple-600"
                 >
                   Dashboard
