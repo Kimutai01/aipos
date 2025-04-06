@@ -2,7 +2,9 @@ defmodule AiposWeb.Live.Sale.Start do
   use AiposWeb, :live_view
   alias Aipos.Sales
   alias Aipos.Products
+  alias Aipos.ProductSkus
   alias Aipos.Accounts
+  import Ecto.Query
 
   @impl true
   def mount(_params, _session, socket) do
@@ -11,9 +13,12 @@ defmodule AiposWeb.Live.Sale.Start do
       |> assign(:active_page, "new_session")
       |> assign(:current_organization, get_organization(socket.assigns.current_user))
       |> assign(:cart_items, [])
-      |> assign(:total_amount, 0)
+      |> assign(:total_amount, Decimal.new(0))
       |> assign(:barcode, "")
-      |> assign(:registers, list_registers())
+      |> assign(
+        :registers,
+        Aipos.Registers.list_registers(socket.assigns.current_user.id)
+      )
       |> assign(:selected_register, nil)
       |> assign(:drawer_opened, false)
       |> assign(:scanner_connected, false)
@@ -52,12 +57,31 @@ defmodule AiposWeb.Live.Sale.Start do
 
   @impl true
   def handle_event("select_register", %{"id" => id}, socket) do
-    register = Enum.find(socket.assigns.registers, &(&1.id == String.to_integer(id)))
+    register_id = String.to_integer(id)
+    register = Aipos.Registers.get_register!(register_id)
 
-    {:noreply,
-     socket
-     |> assign(:selected_register, register)
-     |> assign(:session_started, true)}
+    if register.status != "available" do
+      {:noreply,
+       socket
+       |> put_flash(:error, "This register is not available.")}
+    else
+      # Update the register status to "in_use"
+      case Aipos.Registers.update_register(register, %{status: "in_use"}) do
+        {:ok, updated_register} ->
+          registers = Aipos.Registers.list_registers(socket.assigns.current_user.id)
+
+          {:noreply,
+           socket
+           |> assign(:registers, registers)
+           |> assign(:selected_register, updated_register)
+           |> assign(:session_started, true)}
+
+        {:error, _changeset} ->
+          {:noreply,
+           socket
+           |> put_flash(:error, "Failed to select register. Please try again.")}
+      end
+    end
   end
 
   def handle_event("add_item", %{"barcode" => barcode}, socket) do
@@ -68,8 +92,8 @@ defmodule AiposWeb.Live.Sale.Start do
          |> put_flash(:error, "Product not found for barcode: #{barcode}")
          |> assign(:barcode, "")}
 
-      product ->
-        cart_items = add_to_cart(socket.assigns.cart_items, product)
+      product_sku ->
+        cart_items = add_to_cart(socket.assigns.cart_items, product_sku)
         total = calculate_total(cart_items)
 
         {:noreply,
@@ -87,7 +111,7 @@ defmodule AiposWeb.Live.Sale.Start do
   def handle_event("search_products", %{"query" => query}, socket) do
     results =
       if String.length(query) >= 2 do
-        search_products(query)
+        search_products(query, socket.assigns.current_user.organization_id)
       else
         []
       end
@@ -99,8 +123,8 @@ defmodule AiposWeb.Live.Sale.Start do
   end
 
   def handle_event("add_from_search", %{"id" => id}, socket) do
-    product = Products.get_product_sku!(id)
-    cart_items = add_to_cart(socket.assigns.cart_items, product)
+    product_sku = ProductSkus.get_product_sku!(id)
+    cart_items = add_to_cart(socket.assigns.cart_items, product_sku)
     total = calculate_total(cart_items)
 
     {:noreply,
@@ -128,7 +152,8 @@ defmodule AiposWeb.Live.Sale.Start do
 
     cart_items =
       List.update_at(socket.assigns.cart_items, index, fn item ->
-        %{item | quantity: quantity, subtotal: item.price * quantity}
+        subtotal = Decimal.mult(item.price, Decimal.new(quantity))
+        %{item | quantity: quantity, subtotal: subtotal}
       end)
 
     total = calculate_total(cart_items)
@@ -196,7 +221,7 @@ defmodule AiposWeb.Live.Sale.Start do
 
   def handle_event("update_amount_tendered", %{"amount" => amount}, socket) do
     {amount, _} = Float.parse(amount)
-    change = amount - socket.assigns.total_amount
+    change = amount - Decimal.to_float(socket.assigns.total_amount)
 
     {:noreply,
      socket
@@ -205,7 +230,7 @@ defmodule AiposWeb.Live.Sale.Start do
   end
 
   def handle_event("complete_sale", _, socket) do
-    if socket.assigns.amount_tendered < socket.assigns.total_amount do
+    if socket.assigns.amount_tendered < Decimal.to_float(socket.assigns.total_amount) do
       {:noreply, put_flash(socket, :error, "Amount tendered is less than total amount")}
     else
       # Create sale in database
@@ -224,6 +249,11 @@ defmodule AiposWeb.Live.Sale.Start do
       # case Sales.create_sale(sale_params) do
       #   {:ok, sale} ->
 
+      # Update stock quantities
+      # for item <- socket.assigns.cart_items do
+      #   update_stock_quantity(item.id, item.quantity)
+      # end
+
       # Print receipt if needed
       if socket.assigns.payment_method == "cash" do
         # Signal JS to open cash drawer
@@ -234,7 +264,7 @@ defmodule AiposWeb.Live.Sale.Start do
        socket
        |> assign(:drawer_opened, true)
        |> assign(:cart_items, [])
-       |> assign(:total_amount, 0)
+       |> assign(:total_amount, Decimal.new(0))
        |> assign(:show_payment_modal, false)
        |> assign(:amount_tendered, 0)
        |> assign(:change_due, 0)
@@ -274,7 +304,7 @@ defmodule AiposWeb.Live.Sale.Start do
     {:noreply,
      socket
      |> assign(:cart_items, [])
-     |> assign(:total_amount, 0)
+     |> assign(:total_amount, Decimal.new(0))
      |> assign(:customer, nil)
      |> assign(:customer_phone, "")}
   end
@@ -289,53 +319,33 @@ defmodule AiposWeb.Live.Sale.Start do
   # Helper functions
 
   defp get_organization(user) do
-    # Placeholder - replace with actual implementation
-    %{
-      id: user.organization_id,
-      name: "Sample Organization",
-      logo: "/uploads/73286_Screenshot 2025-03-20 at 02.16.35.png"
-    }
-  end
-
-  defp list_registers do
-    # Placeholder - replace with actual implementation
-    [
-      %{id: 1, name: "Register 1", status: "available"},
-      %{id: 2, name: "Register 2", status: "available"},
-      %{id: 3, name: "Register 3", status: "in_use"},
-      %{id: 4, name: "Register 4", status: "available"}
-    ]
+    Aipos.Organizations.get_organization!(user.organization_id)
   end
 
   defp find_product_by_barcode(barcode) do
-    # Placeholder - replace with actual implementation
-    case barcode do
-      "1234567890" ->
-        %{id: 1, name: "Sunlight Soap 500g", barcode: "1234567890", price: 120, image: nil}
-
-      "2345678901" ->
-        %{id: 2, name: "Bread", barcode: "2345678901", price: 50, image: nil}
-
-      "3456789012" ->
-        %{id: 3, name: "Milk 500ml", barcode: "3456789012", price: 70, image: nil}
-
-      _ ->
-        nil
-    end
+    # Look up the product SKU by barcode
+    from(s in Aipos.ProductSkus.ProductSku,
+      where: s.barcode == ^barcode,
+      preload: [:product]
+    )
+    |> Aipos.Repo.one()
   end
 
-  defp add_to_cart(cart_items, product) do
+  defp add_to_cart(cart_items, product_sku) do
     # Check if item already exists in cart
-    case Enum.find_index(cart_items, &(&1.id == product.id)) do
+    case Enum.find_index(cart_items, &(&1.id == product_sku.id)) do
       nil ->
         # Add new item to cart
         cart_item = %{
-          id: product.id,
-          name: product.name,
-          barcode: product.barcode,
-          price: product.price,
+          id: product_sku.id,
+          sku_id: product_sku.id,
+          name: product_sku.name,
+          product_name: (product_sku.product && product_sku.product.name) || product_sku.name,
+          barcode: product_sku.barcode,
+          price: product_sku.price,
           quantity: 1,
-          subtotal: product.price
+          subtotal: product_sku.price,
+          image: product_sku.image
         }
 
         cart_items ++ [cart_item]
@@ -344,28 +354,50 @@ defmodule AiposWeb.Live.Sale.Start do
         # Increment quantity of existing item
         List.update_at(cart_items, index, fn item ->
           new_quantity = item.quantity + 1
-          %{item | quantity: new_quantity, subtotal: item.price * new_quantity}
+          subtotal = Decimal.mult(item.price, Decimal.new(new_quantity))
+          %{item | quantity: new_quantity, subtotal: subtotal}
         end)
     end
   end
 
   defp calculate_total(cart_items) do
-    Enum.reduce(cart_items, 0, fn item, acc -> acc + item.subtotal end)
+    Enum.reduce(cart_items, Decimal.new(0), fn item, acc ->
+      Decimal.add(acc, item.subtotal)
+    end)
   end
 
-  defp search_products(query) do
-    # Placeholder - replace with actual implementation
-    [
-      %{id: 1, name: "Sunlight Soap 500g", barcode: "1234567890", price: 120, image: nil},
-      %{id: 2, name: "Bread", barcode: "2345678901", price: 50, image: nil},
-      %{id: 3, name: "Milk 500ml", barcode: "3456789012", price: 70, image: nil}
-    ]
-    |> Enum.filter(&String.contains?(String.downcase(&1.name), String.downcase(query)))
+  defp search_products(query, organization_id) do
+    # Search for products that match the query
+    from(s in Aipos.ProductSkus.ProductSku,
+      join: p in assoc(s, :product),
+      where:
+        (ilike(s.name, ^"%#{query}%") or ilike(p.name, ^"%#{query}%") or
+           ilike(s.barcode, ^"%#{query}%")) and s.organization_id == ^organization_id,
+      preload: [:product],
+      limit: 10
+    )
+    |> Aipos.Repo.all()
   end
 
-  defp format_money(amount) do
-    :erlang.float_to_binary(amount / 1, decimals: 2)
+  # Function to update stock quantity after a sale
+  defp update_stock_quantity(sku_id, quantity) do
+    sku = ProductSkus.get_product_sku!(sku_id)
+    new_quantity = sku.stock_quantity - quantity
+
+    new_quantity = if new_quantity < 0, do: 0, else: new_quantity
+
+    ProductSkus.update_product_sku(sku, %{stock_quantity: new_quantity})
   end
+
+  defp format_money(amount) when is_number(amount) do
+    :erlang.float_to_binary(amount, decimals: 2)
+  end
+
+  defp format_money(%Decimal{} = amount) do
+    Decimal.to_string(amount, :normal)
+  end
+
+  defp format_money(_), do: "0.00"
 
   @impl true
   def render(assigns) do
@@ -529,8 +561,22 @@ defmodule AiposWeb.Live.Sale.Start do
                         <%= for {item, index} <- Enum.with_index(@cart_items) do %>
                           <tr>
                             <td class="px-4 py-4 whitespace-nowrap">
-                              <div class="text-sm font-medium text-gray-900">{item.name}</div>
-                              <div class="text-xs text-gray-500">{item.barcode}</div>
+                              <div class="flex items-center">
+                                <%= if item.image do %>
+                                  <div class="flex-shrink-0 h-10 w-10 mr-3">
+                                    <img
+                                      class="h-10 w-10 rounded-full object-cover"
+                                      src={item.image}
+                                      alt={item.name}
+                                    />
+                                  </div>
+                                <% end %>
+                                <div>
+                                  <div class="text-sm font-medium text-gray-900">{item.name}</div>
+                                  <div class="text-xs text-gray-500">{item.product_name}</div>
+                                  <div class="text-xs text-gray-500">{item.barcode}</div>
+                                </div>
+                              </div>
                             </td>
                             <td class="px-4 py-4 whitespace-nowrap text-center text-sm text-gray-500">
                               KSh {format_money(item.price)}
@@ -653,7 +699,7 @@ defmodule AiposWeb.Live.Sale.Start do
                 <div class="mb-4">
                   <input
                     type="text"
-                    placeholder="Search by name..."
+                    placeholder="Search by name or barcode..."
                     value={@search_query}
                     phx-keyup="search_products"
                     phx-key="keyup"
@@ -664,16 +710,34 @@ defmodule AiposWeb.Live.Sale.Start do
 
                 <%= if !Enum.empty?(@search_results) do %>
                   <div class="space-y-2 max-h-72 overflow-y-auto">
-                    <%= for product <- @search_results do %>
+                    <%= for product_sku <- @search_results do %>
                       <div class="border border-gray-200 rounded-md p-2 flex justify-between items-center">
-                        <div>
-                          <div class="text-sm font-medium">{product.name}</div>
-                          <div class="text-xs text-gray-500">KSh {format_money(product.price)}</div>
+                        <div class="flex items-center">
+                          <%= if product_sku.image do %>
+                            <div class="flex-shrink-0 h-10 w-10 mr-3">
+                              <img
+                                class="h-10 w-10 rounded-full object-cover"
+                                src={product_sku.image}
+                                alt={product_sku.name}
+                              />
+                            </div>
+                          <% end %>
+                          <div>
+                            <div class="text-sm font-medium">{product_sku.name}</div>
+                            <div class="text-xs text-gray-500">
+                              <%= if product_sku.product do %>
+                                {product_sku.product.name}
+                              <% end %>
+                            </div>
+                            <div class="text-xs text-gray-500">
+                              KSh {format_money(product_sku.price)}
+                            </div>
+                          </div>
                         </div>
                         <button
                           type="button"
                           phx-click="add_from_search"
-                          phx-value-id={product.id}
+                          phx-value-id={product_sku.id}
                           class="px-3 py-1 text-xs font-medium text-blue-600 hover:text-blue-800"
                         >
                           Add to Cart
@@ -783,7 +847,8 @@ defmodule AiposWeb.Live.Sale.Start do
           </div>
         </div>
       <% end %>
-
+      
+    <!-- Payment modal -->
       <%= if @show_payment_modal do %>
         <div class="fixed inset-0 bg-gray-500 bg-opacity-75 z-50 flex items-center justify-center">
           <div class="bg-white rounded-lg shadow-xl max-w-lg w-full p-6">
@@ -848,7 +913,7 @@ defmodule AiposWeb.Live.Sale.Start do
                   </div>
                   <input
                     type="number"
-                    min={@total_amount}
+                    min={Decimal.to_float(@total_amount)}
                     step="0.01"
                     phx-change="update_amount_tendered"
                     phx-debounce="300"
@@ -858,7 +923,7 @@ defmodule AiposWeb.Live.Sale.Start do
                   />
                 </div>
 
-                <%= if @amount_tendered > 0 && @amount_tendered >= @total_amount do %>
+                <%= if @amount_tendered > 0 && @amount_tendered >= Decimal.to_float(@total_amount) do %>
                   <div class="mt-2 flex justify-between text-sm">
                     <span class="text-gray-500">Change Due:</span>
                     <span class="font-semibold text-green-600">KSh {format_money(@change_due)}</span>
@@ -871,7 +936,9 @@ defmodule AiposWeb.Live.Sale.Start do
                     <button
                       type="button"
                       phx-click="update_amount_tendered"
-                      phx-value-amount={if amount == "Exact", do: @total_amount, else: amount}
+                      phx-value-amount={
+                        if amount == "Exact", do: Decimal.to_float(@total_amount), else: amount
+                      }
                       class="py-1 px-2 border border-gray-300 rounded-md text-xs font-medium text-gray-700 hover:bg-gray-50"
                     >
                       {if amount == "Exact", do: "Exact", else: "KSh #{amount}"}
@@ -914,8 +981,10 @@ defmodule AiposWeb.Live.Sale.Start do
               <button
                 type="button"
                 phx-click="complete_sale"
-                disabled={@payment_method == "cash" && @amount_tendered < @total_amount}
-                class={"inline-flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 #{if @payment_method == "cash" && @amount_tendered < @total_amount, do: "opacity-50 cursor-not-allowed", else: ""}"}
+                disabled={
+                  @payment_method == "cash" && @amount_tendered < Decimal.to_float(@total_amount)
+                }
+                class={"inline-flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 #{if @payment_method == "cash" && @amount_tendered < Decimal.to_float(@total_amount), do: "opacity-50 cursor-not-allowed", else: ""}"}
               >
                 Complete Sale
               </button>

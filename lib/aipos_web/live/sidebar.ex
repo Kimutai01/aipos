@@ -115,7 +115,7 @@ defmodule AiposWeb.Sidebar do
                   )
                 }
               >
-                <Heroicons.icon name="truck" type="solid" class="h-5 w-5 mr-3 text-emerald-400" />
+                <Heroicons.icon name="truck" type="solid" class="h-8 w- mr-3 text-emerald-400" />
                 <span>Suppliers</span>
               </a>
             </li>
@@ -220,6 +220,27 @@ defmodule AiposWeb.Sidebar do
               >
                 <Heroicons.icon name="chart-bar" type="solid" class="h-5 w-5 mr-3 text-red-400" />
                 <span>Reports</span>
+              </a>
+            </li>
+
+            <%!-- registers --%>
+
+            <li>
+              <a
+                href="/registers"
+                class={
+                  active_class(
+                    @active_page == "registers",
+                    "flex items-center py-2 px-4 text-white hover:bg-gray-700 rounded-lg"
+                  )
+                }
+              >
+                <Heroicons.icon
+                  name="computer-desktop"
+                  type="solid"
+                  class="h-5 w-5 mr-3 text-gray-400"
+                />
+                <span>Registers</span>
               </a>
             </li>
 

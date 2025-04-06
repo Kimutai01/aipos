@@ -63,7 +63,10 @@ defmodule AiposWeb.Router do
     pipe_through [:browser, :require_authenticated_user]
 
     live_session :require_authenticated_user,
-      on_mount: [{AiposWeb.UserAuth, :ensure_authenticated}] do
+      on_mount: [
+        {AiposWeb.UserAuth, :ensure_authenticated},
+        {AiposWeb.UserAuth, :mount_current_user}
+      ] do
       live "/dashboard", DashboardLive.Index, :index
       live "/manage_users", Users.Staff
       live "/users/staff/new", Users.Staff, :new
@@ -86,6 +89,17 @@ defmodule AiposWeb.Router do
       live "/products/new", ProductLive.Index, :new
       live "/products/:id/edit", ProductLive.Index, :edit
 
+      live "/products/:product_id/skus", ProductSkuLive.Index, :index
+      live "/products/:product_id/skus/new", ProductSkuLive.Index, :new
+      live "/products/:product_id/skus/:id/edit", ProductSkuLive.Index, :edit
+
+      live "/registers", RegisterLive.Index, :index
+      live "/registers/new", RegisterLive.Index, :new
+      live "/registers/:id/edit", RegisterLive.Index, :edit
+
+      live "/registers/:id", RegisterLive.Show, :show
+      live "/registers/:id/show/edit", RegisterLive.Show, :edit
+
       live "/products/:id", ProductLive.Show, :show
       live "/products/:id/show/edit", ProductLive.Show, :edit
       live "/users/settings", UserSettingsLive, :edit
@@ -100,6 +114,7 @@ defmodule AiposWeb.Router do
 
     live_session :current_user,
       on_mount: [{AiposWeb.UserAuth, :mount_current_user}] do
+      live "/self_checkout", Live.SelfCheckout
       live "/", LandingLive.Index
       live "/users/confirm/:token", UserConfirmationLive, :edit
       live "/users/confirm", UserConfirmationInstructionsLive, :new

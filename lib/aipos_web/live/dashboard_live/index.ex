@@ -307,7 +307,6 @@ defmodule AiposWeb.DashboardLive.Index do
 
   defp get_organization(user) do
     Aipos.Organizations.get_organization!(user.organization_id)
-    |> IO.inspect()
   end
 
   defp generate_today_sales do

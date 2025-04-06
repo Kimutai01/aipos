@@ -17,8 +17,9 @@ defmodule Aipos.ProductSkus do
       [%ProductSku{}, ...]
 
   """
-  def list_product_skus do
-    Repo.all(ProductSku)
+  def list_product_skus(product_id) do
+    from(v in ProductSku, where: [product_id: ^product_id], order_by: [asc: :id])
+    |> Repo.all()
   end
 
   @doc """
@@ -35,7 +36,12 @@ defmodule Aipos.ProductSkus do
       ** (Ecto.NoResultsError)
 
   """
-  def get_product_sku!(id), do: Repo.get!(ProductSku, id)
+
+  def get_product_sku!(id) do
+    Repo.get!(ProductSku, id)
+  end
+
+  def get_product_sku!(product, id), do: Repo.get_by!(ProductSku, product_id: product.id, id: id)
 
   @doc """
   Creates a product_sku.

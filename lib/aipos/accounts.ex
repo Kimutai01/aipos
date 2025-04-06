@@ -34,6 +34,26 @@ defmodule Aipos.Accounts do
     Repo.update(changeset)
   end
 
+  def register_staff_user(attrs) do
+    %User{}
+    |> User.staff_registration_changeset(attrs)
+    |> Repo.insert()
+  end
+  @doc """
+  Gets a user by staff ID.
+  """
+  def get_user_by_staff_id(staff_id) when is_binary(staff_id) do
+    Repo.get_by(User, staff_id: staff_id)
+  end
+
+  def update_last_login(user) do
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    user
+    |> User.last_login_changeset(%{last_login: now})
+    |> Repo.update()
+  end
+
   @doc """
   Gets a user by email and password.
 

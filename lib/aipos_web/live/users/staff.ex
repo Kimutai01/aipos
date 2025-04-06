@@ -52,7 +52,6 @@ defmodule AiposWeb.Users.Staff do
     |> assign(:form, to_form(Accounts.change_user(%User{})))
   end
 
-  # Fallback for any other action (including nil)
   defp apply_action(socket, _action, _params) do
     socket
     |> assign(:staff_member, nil)
@@ -97,13 +96,11 @@ defmodule AiposWeb.Users.Staff do
         update_staff_member(socket, socket.assigns.staff_member, user_params)
 
       _ ->
-        # Fallback for any other action
         {:noreply, socket}
     end
   end
 
   defp create_staff_member(socket, params) do
-    # Ensure the new staff member belongs to the admin's organization
     params = Map.put(params, "organization_id", socket.assigns.current_user.organization_id)
 
     params = Map.put(params, "role", "staff")
@@ -166,12 +163,7 @@ defmodule AiposWeb.Users.Staff do
 
   # Get the current organization
   defp get_organization(user) do
-    # This is a placeholder - replace with actual organization lookup
-    %{
-      id: user.organization_id,
-      name: "Sample Organization",
-      logo: "/uploads/73286_Screenshot 2025-03-20 at 02.16.35.png"
-    }
+    Aipos.Organizations.get_organization!(user.organization_id)
   end
 
   # List all staff members for the current organization

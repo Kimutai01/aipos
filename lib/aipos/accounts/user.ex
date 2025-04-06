@@ -11,6 +11,10 @@ defmodule Aipos.Accounts.User do
     field :current_password, :string, virtual: true, redact: true
     field :confirmed_at, :utc_datetime
 
+    field :staff_id, :string
+    field :name, :string
+    field :active, :boolean, default: true
+    field :last_login, :utc_datetime
     timestamps(type: :utc_datetime)
   end
 
@@ -37,6 +41,24 @@ defmodule Aipos.Accounts.User do
       submitting the form), this option can be set to `false`.
       Defaults to `true`.
   """
+  def staff_registration_changeset(user, attrs, opts \\ []) do
+    user
+    |> cast(attrs, [:email, :password, :staff_id, :name, :role, :active, :organization_id])
+    |> validate_required([:email, :password, :staff_id, :name, :role, :organization_id])
+    |> validate_format(:staff_id, ~r/^\d{6}$/, message: "must be a 6-digit number")
+    |> unique_constraint(:staff_id)
+    |> validate_email(opts)
+    |> validate_password(opts)
+  end
+
+  def staff_update_changeset(user, attrs) do
+    user
+    |> cast(attrs, [:name, :email, :role, :active, :staff_id])
+    |> validate_required([:name, :email, :role, :staff_id])
+    |> validate_format(:staff_id, ~r/^\d{6}$/, message: "must be a 6-digit number")
+    |> unique_constraint(:staff_id)
+    |> validate_email([])
+  end
   def registration_changeset(user, attrs, opts \\ []) do
     user
     |> cast(attrs, [:email, :password, :role])
@@ -127,6 +149,12 @@ defmodule Aipos.Accounts.User do
   def user_update_changeset(user, attrs) do
     user
     |> cast(attrs, [:organization_id])
+  end
+
+  def last_login_changeset(user, attrs) do
+    user
+    |> cast(attrs, [:last_login])
+    |> validate_required([:last_login])
   end
 
   @doc """

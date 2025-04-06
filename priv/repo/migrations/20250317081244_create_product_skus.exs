@@ -7,10 +7,10 @@ defmodule Aipos.Repo.Migrations.CreateProductSkus do
       add :description, :string
       add :image, :string
       add :barcode, :string
-      add :price, :string
-      add :cost, :string
-      add :stock_quantity, :string
-      add :buffer_level, :string
+      add :price, :decimal
+      add :cost, :decimal
+      add :stock_quantity, :integer
+      add :buffer_level, :integer
       add :rfid_tag, :string
       add :product_id, references(:products, on_delete: :nothing)
 

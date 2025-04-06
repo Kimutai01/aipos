@@ -4,6 +4,7 @@ defmodule Aipos.Products do
   """
 
   import Ecto.Query, warn: false
+  alias Aipos.ProductSkus.ProductSku
   alias Aipos.Repo
 
   alias Aipos.Products.Product
@@ -19,7 +20,18 @@ defmodule Aipos.Products do
   """
   def list_products do
     Repo.all(Product)
+    |> Repo.preload(:product_skus)
   end
+
+  def list_product_skus(product_id) do
+    from(s in ProductSku,
+      where: s.product_id == ^product_id,
+      preload: [:product]
+    )
+    |> Repo.all()
+  end
+
+  
 
   @doc """
   Gets a single product.
@@ -35,7 +47,10 @@ defmodule Aipos.Products do
       ** (Ecto.NoResultsError)
 
   """
-  def get_product!(id), do: Repo.get!(Product, id)
+  def get_product!(id) do
+    Repo.get!(Product, id)
+    |> Repo.preload(product_skus: from(v in ProductSku, order_by: v.id))
+  end
 
   @doc """
   Creates a product.
@@ -53,7 +68,14 @@ defmodule Aipos.Products do
     %Product{}
     |> Product.changeset(attrs)
     |> Repo.insert()
+    |> preload_after_save()
   end
+
+  defp preload_after_save({:ok, product}) do
+    {:ok, Repo.preload(product, :product_skus)}
+  end
+
+  defp preload_after_save(error), do: error
 
   @doc """
   Updates a product.
@@ -71,6 +93,7 @@ defmodule Aipos.Products do
     product
     |> Product.changeset(attrs)
     |> Repo.update()
+    |> preload_after_save()
   end
 
   @doc """
