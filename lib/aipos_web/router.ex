@@ -114,6 +114,9 @@ defmodule AiposWeb.Router do
 
     live_session :current_user,
       on_mount: [{AiposWeb.UserAuth, :mount_current_user}] do
+      live "/marketplace", MarketplaceLive.Index
+      # In lib/aipos_web/router.ex
+      live "/success", SuccessLive.Index
       live "/self_checkout", Live.SelfCheckout
       live "/", LandingLive.Index
       live "/users/confirm/:token", UserConfirmationLive, :edit

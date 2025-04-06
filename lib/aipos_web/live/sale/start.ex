@@ -66,7 +66,7 @@ defmodule AiposWeb.Live.Sale.Start do
        |> put_flash(:error, "This register is not available.")}
     else
       # Update the register status to "in_use"
-      case Aipos.Registers.update_register(register, %{status: "in_use"}) do
+      case Aipos.Registers.update_register(register, %{status: "available"}) do
         {:ok, updated_register} ->
           registers = Aipos.Registers.list_registers(socket.assigns.current_user.id)
 
@@ -237,42 +237,69 @@ defmodule AiposWeb.Live.Sale.Start do
       sale_params = %{
         register_id: socket.assigns.selected_register.id,
         cashier_id: socket.assigns.current_user.id,
-        items: socket.assigns.cart_items,
         total_amount: socket.assigns.total_amount,
         payment_method: socket.assigns.payment_method,
-        amount_tendered: socket.assigns.amount_tendered,
-        change_due: socket.assigns.change_due,
+        amount_tendered: Decimal.new("#{socket.assigns.amount_tendered}"),
+        change_due: Decimal.new("#{socket.assigns.change_due}"),
+        status: "completed",
+        organization_id: socket.assigns.current_user.organization_id,
         customer_id: socket.assigns.customer && socket.assigns.customer.id
       }
 
-      # In a real app, you'd create the sale in the database
-      # case Sales.create_sale(sale_params) do
-      #   {:ok, sale} ->
+      case Aipos.Sales.create_sale(sale_params) do
+        {:ok, sale} ->
+          # Create sale items
+          Enum.each(socket.assigns.cart_items, fn item ->
+            item_params = %{
+              sale_id: sale.id,
+              product_sku_id: item.sku_id,
+              name: item.name,
+              quantity: item.quantity,
+              price: item.price,
+              subtotal: item.subtotal,
+              organization_id: socket.assigns.current_user.organization_id
+            }
 
-      # Update stock quantities
-      # for item <- socket.assigns.cart_items do
-      #   update_stock_quantity(item.id, item.quantity)
-      # end
+            {:ok, _sale_item} = Aipos.Sales.create_sale_item(item_params)
 
-      # Print receipt if needed
-      if socket.assigns.payment_method == "cash" do
-        # Signal JS to open cash drawer
-        socket = push_event(socket, "open_cash_drawer", %{})
+            update_stock_quantity(item.sku_id, item.quantity)
+          end)
+
+          register = socket.assigns.selected_register
+          {:ok, _register} = Aipos.Registers.update_register(register, %{status: "available"})
+
+          # Print receipt here
+          socket =
+            if socket.assigns.payment_method == "cash" do
+              # Signal JS to open cash drawer
+              push_event(socket, "open_cash_drawer", %{})
+            else
+              socket
+            end
+
+          registers = Aipos.Registers.list_registers(socket.assigns.current_user.id)
+
+          {:noreply,
+           socket
+           |> assign(:registers, registers)
+           |> assign(:drawer_opened, socket.assigns.payment_method == "cash")
+           |> assign(:cart_items, [])
+           |> assign(:total_amount, Decimal.new(0))
+           |> assign(:show_payment_modal, false)
+           |> assign(:amount_tendered, 0)
+           |> assign(:change_due, 0)
+           |> assign(:session_started, false)
+           |> assign(:selected_register, nil)
+           |> put_flash(:info, "Sale ##{sale.id} completed successfully!")}
+
+        {:error, changeset} ->
+          errors = Ecto.Changeset.traverse_errors(changeset, &translate_error/1)
+          error_message = "Error completing sale: #{inspect(errors)}"
+
+          {:noreply,
+           socket
+           |> put_flash(:error, error_message)}
       end
-
-      {:noreply,
-       socket
-       |> assign(:drawer_opened, true)
-       |> assign(:cart_items, [])
-       |> assign(:total_amount, Decimal.new(0))
-       |> assign(:show_payment_modal, false)
-       |> assign(:amount_tendered, 0)
-       |> assign(:change_due, 0)
-       |> put_flash(:info, "Sale completed successfully!")}
-
-      #   {:error, changeset} ->
-      #     {:noreply, put_flash(socket, :error, "Error completing sale")}
-      # end
     end
   end
 

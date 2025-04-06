@@ -21,6 +21,13 @@ defmodule Aipos.Sales do
     Repo.all(Sale)
   end
 
+  # In lib/aipos/sales.ex
+
+  # Get sale by transaction_id
+  def get_sale_by_transaction_id(transaction_id) do
+    Repo.one(from s in Sale, where: s.transaction_id == ^transaction_id)
+  end
+
   @doc """
   Gets a single sale.
 
@@ -149,6 +156,10 @@ defmodule Aipos.Sales do
     %SaleItem{}
     |> SaleItem.changeset(attrs)
     |> Repo.insert()
+  end
+
+  def list_sale_items_by_sale_id(sale_id) do
+    Repo.all(from i in SaleItem, where: i.sale_id == ^sale_id)
   end
 
   @doc """

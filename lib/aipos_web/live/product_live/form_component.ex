@@ -440,7 +440,7 @@ defmodule AiposWeb.ProductLive.FormComponent do
               <% end %>
             </div>
           </div>
-          
+
     <!-- SKUs Section -->
           <div class="border-t border-gray-200 pt-6">
             <div class="flex justify-between items-center mb-4">
@@ -452,7 +452,7 @@ defmodule AiposWeb.ProductLive.FormComponent do
                 Add different sizes, packages, or variants of this product
               </div>
             </div>
-            
+
     <!-- SKU Table -->
             <%= if @skus != [] do %>
               <div class="mb-4 overflow-x-auto">
@@ -569,7 +569,7 @@ defmodule AiposWeb.ProductLive.FormComponent do
                 No variants added yet. Add your first variant below.
               </div>
             <% end %>
-            
+
     <!-- Button to add SKU -->
             <div class="mt-4">
               <button
@@ -596,9 +596,8 @@ defmodule AiposWeb.ProductLive.FormComponent do
           </div>
         </.form>
       </div>
-      
-    <!-- SKU Form Modal -->
-      <!-- SKU Form Modal with Correct Input Types -->
+
+
       <%= if @show_sku_form do %>
         <div class="fixed inset-0 flex items-center justify-center z-50">
           <div class="absolute inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
@@ -708,7 +707,7 @@ defmodule AiposWeb.ProductLive.FormComponent do
                       rows="2"
                     ><%= @current_sku.description %></textarea>
                   </div>
-                  
+
     <!-- Add SKU Image Upload -->
                   <div>
                     <label class="block text-sm font-medium text-gray-700">
@@ -768,7 +767,7 @@ defmodule AiposWeb.ProductLive.FormComponent do
                       </div>
                     <% end %>
                   </div>
-                  
+
     <!-- Hidden field for organization_id -->
                   <input
                     type="hidden"
