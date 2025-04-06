@@ -31,7 +31,7 @@ defmodule Aipos.Paystack do
         "reference" => transaction_id,
         "email" => email,
         "amount" => amount,
-        "callback_url" => "http://localhost:4144/success"
+        "callback_url" => "https://pos.socoafrica.com/success"
       }
       |> Jason.encode!()
 
