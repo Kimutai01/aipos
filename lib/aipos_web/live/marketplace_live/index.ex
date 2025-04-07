@@ -26,6 +26,11 @@ defmodule AiposWeb.MarketplaceLive.Index do
       |> assign(:show_checkout_form, false)
       |> assign(:redirecting, false)
       |> assign(:payment_method, nil)
+      # New attribute for scanner state
+      |> assign(:barcode_scanner_enabled, false)
+      # Track last scanned barcode
+      |> assign(:last_scanned_barcode, nil)
+      |> assign(:scan_status, nil)
 
     {:ok, socket}
   end
@@ -43,6 +48,65 @@ defmodule AiposWeb.MarketplaceLive.Index do
   defp apply_action(socket, nil, _params) do
     socket
     |> assign(:page_title, "Marketplace")
+  end
+
+  def handle_event("barcode_scanned", %{"barcode" => barcode}, socket) do
+    # We can only add items if an organization is selected
+    if is_nil(socket.assigns.selected_organization) do
+      {:noreply,
+       socket
+       |> assign(:last_scanned_barcode, barcode)
+       |> assign(:scan_status, "Please select a store first")
+       |> put_flash(:error, "Please select a store before scanning products")}
+    else
+      # Search for product by barcode
+      case find_product_by_barcode(barcode, socket.assigns.selected_organization.id)
+           |> IO.inspect() do
+        nil ->
+          {:noreply,
+           socket
+           |> assign(:last_scanned_barcode, barcode)
+           |> assign(:scan_status, "Product not found")
+           |> put_flash(:error, "Product with barcode #{barcode} not found")}
+
+        product_sku ->
+          if product_sku.stock_quantity <= 0 do
+            {:noreply,
+             socket
+             |> assign(:last_scanned_barcode, barcode)
+             |> assign(:scan_status, "Out of stock")
+             |> put_flash(:error, "Product is out of stock")}
+          else
+            # Add product to cart
+            cart_items = add_to_cart(socket.assigns.cart_items, product_sku)
+            total = calculate_total(cart_items)
+
+            {:noreply,
+             socket
+             |> assign(:cart_items, cart_items)
+             |> assign(:total_amount, total)
+             |> assign(:last_scanned_barcode, barcode)
+             |> assign(:scan_status, "Added to cart")
+             |> assign(:show_cart, true)
+             |> put_flash(:info, "Added #{product_sku.name} to cart")}
+          end
+      end
+    end
+  end
+
+  defp find_product_by_barcode(barcode, organization_id) do
+    IO.inspect(barcode, label: "Barcode")
+    IO.inspect(organization_id, label: "Organization ID")
+    # Look up the product SKU by barcode
+    from(s in Aipos.ProductSkus.ProductSku,
+      where: s.barcode == ^barcode and s.organization_id == ^organization_id,
+      preload: [:product]
+    )
+    |> Aipos.Repo.one()
+  end
+
+  def handle_event("toggle_scanner_mode", _, socket) do
+    {:noreply, assign(socket, :barcode_scanner_enabled, !socket.assigns.barcode_scanner_enabled)}
   end
 
   @impl true
@@ -392,26 +456,58 @@ defmodule AiposWeb.MarketplaceLive.Index do
                 <h1 class="text-2xl font-bold text-gray-900">Marketplace</h1>
               </div>
 
-              <button
-                type="button"
-                phx-click="toggle_cart"
-                class="relative p-2 text-gray-600 hover:text-gray-900 focus:outline-none flex items-center"
-              >
-                <Heroicons.icon name="shopping-cart" class="h-6 w-6 mr-1" />
-                <span class="hidden md:inline text-sm font-medium">
-                  {if @show_cart, do: "Hide Cart", else: "Show Cart"}
-                </span>
-                <%= if !Enum.empty?(@cart_items) do %>
-                  <span class="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-xs font-medium text-white">
-                    {Enum.count(@cart_items)}
+              <div class="flex items-center space-x-4">
+                <!-- Toggle self-checkout mode button -->
+                <button
+                  type="button"
+                  phx-click="toggle_scanner_mode"
+                  class={"p-2 rounded-md #{if @barcode_scanner_enabled, do: "bg-blue-100 text-blue-700", else: "text-gray-600 hover:text-gray-900"} focus:outline-none flex items-center"}
+                >
+                  <Heroicons.icon name="qr-code" class="h-6 w-6 mr-1" />
+                  <span class="hidden md:inline text-sm font-medium">
+                    {if @barcode_scanner_enabled,
+                      do: "Self-Checkout Active",
+                      else: "Enable Self-Checkout"}
                   </span>
-                <% end %>
-              </button>
+                </button>
+                
+    <!-- Cart button -->
+                <button
+                  type="button"
+                  phx-click="toggle_cart"
+                  class="relative p-2 text-gray-600 hover:text-gray-900 focus:outline-none flex items-center"
+                >
+                  <Heroicons.icon name="shopping-cart" class="h-6 w-6 mr-1" />
+                  <span class="hidden md:inline text-sm font-medium">
+                    {if @show_cart, do: "Hide Cart", else: "Show Cart"}
+                  </span>
+                  <%= if !Enum.empty?(@cart_items) do %>
+                    <span class="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-xs font-medium text-white">
+                      {Enum.count(@cart_items)}
+                    </span>
+                  <% end %>
+                </button>
+              </div>
             </div>
           </div>
         </header>
-        
-    <!-- Main content with cart sidebar -->
+        <%= if @last_scanned_barcode && @scan_status do %>
+          <div class="bg-blue-50 p-3 flex items-center">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center space-x-3">
+              <Heroicons.icon
+                name={
+                  if @scan_status == "Added to cart", do: "check-circle", else: "exclamation-circle"
+                }
+                class={"h-5 w-5 #{if @scan_status == "Added to cart", do: "text-green-500", else: "text-amber-500"}"}
+              />
+              <span>
+                Barcode: <span class="font-medium">{@last_scanned_barcode}</span>
+                - {if @scan_status, do: @scan_status, else: ""}
+              </span>
+            </div>
+          </div>
+        <% end %>
+        <!-- Main content with cart sidebar -->
         <div class="flex flex-1 flex-col md:flex-row">
           <!-- Main content area -->
           <main class="flex-1 container mx-auto px-4 py-6 md:pr-0 md:pl-4">
@@ -433,6 +529,22 @@ defmodule AiposWeb.MarketplaceLive.Index do
                 <% end %>
               </div>
             </div>
+
+            <%= if @barcode_scanner_enabled && @selected_organization do %>
+              <div class="mb-6 bg-blue-50 p-4 rounded-lg border border-blue-200">
+                <div class="flex items-start">
+                  <div class="flex-shrink-0 pt-0.5">
+                    <Heroicons.icon name="qr-code" class="h-6 w-6 text-blue-600" />
+                  </div>
+                  <div class="ml-3">
+                    <h3 class="text-lg font-medium text-blue-800">Self-Checkout Mode Active</h3>
+                    <p class="mt-1 text-blue-700">
+                      Use the scanner button at the bottom right to scan product barcodes using your phone's camera.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            <% end %>
 
             <%= if @selected_organization do %>
               <!-- Product search -->
@@ -847,6 +959,7 @@ defmodule AiposWeb.MarketplaceLive.Index do
           </div>
         <% end %>
       </div>
+      <div id="barcode-scanner-container" phx-hook="BarcodeScanner"></div>
     <% end %>
     """
   end
