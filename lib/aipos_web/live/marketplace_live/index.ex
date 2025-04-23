@@ -470,7 +470,7 @@ defmodule AiposWeb.MarketplaceLive.Index do
                       else: "Enable Self-Checkout"}
                   </span>
                 </button>
-                
+
     <!-- Cart button -->
                 <button
                   type="button"
@@ -606,7 +606,7 @@ defmodule AiposWeb.MarketplaceLive.Index do
                   </div>
                 <% end %>
               </div>
-              
+
     <!-- Product listing -->
               <div>
                 <h2 class="text-xl font-semibold mb-4">
@@ -680,7 +680,7 @@ defmodule AiposWeb.MarketplaceLive.Index do
               </div>
             <% end %>
           </main>
-          
+
     <!-- Cart sidebar - toggleable on both mobile and desktop, sticky positioning -->
           <aside class={"bg-white shadow-lg transition-all duration-300 overflow-hidden z-20
           #{if @show_cart, do: "w-full md:w-96", else: "w-0"}
@@ -713,7 +713,7 @@ defmodule AiposWeb.MarketplaceLive.Index do
                           </div>
                         <% end %>
                       </div>
-                      
+
     <!-- Item details -->
                       <div class="flex-1 min-w-0">
                         <div class="font-medium truncate">{item.name}</div>
@@ -761,7 +761,7 @@ defmodule AiposWeb.MarketplaceLive.Index do
                     </div>
                   <% end %>
                 </div>
-                
+
     <!-- Cart summary -->
                 <div class="border-t pt-4 mt-auto">
                   <div class="flex justify-between text-sm">
@@ -798,7 +798,7 @@ defmodule AiposWeb.MarketplaceLive.Index do
             </div>
           </aside>
         </div>
-        
+
     <!-- Checkout form overlay -->
         <%= if @show_checkout_form do %>
           <div class="fixed inset-0 bg-gray-700 bg-opacity-75 flex items-center justify-center z-50 p-4">
@@ -810,7 +810,7 @@ defmodule AiposWeb.MarketplaceLive.Index do
                     <Heroicons.icon name="x-mark" class="h-6 w-6" />
                   </button>
                 </div>
-                
+
     <!-- Contact information -->
                 <div class="mb-6">
                   <h3 class="text-lg font-medium mb-4">Contact Information</h3>
@@ -850,7 +850,7 @@ defmodule AiposWeb.MarketplaceLive.Index do
                     </div>
                   </form>
                 </div>
-                
+
     <!-- Order summary -->
                 <div class="mb-6">
                   <h3 class="text-lg font-medium mb-2">Order Summary</h3>
@@ -897,7 +897,7 @@ defmodule AiposWeb.MarketplaceLive.Index do
                     </div>
                   </div>
                 </div>
-                
+
     <!-- Payment method selection -->
                 <div class="mb-6">
                   <h3 class="text-lg font-medium mb-2">Payment Method</h3>

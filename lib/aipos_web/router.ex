@@ -17,6 +17,10 @@ defmodule AiposWeb.Router do
     plug :accepts, ["json"]
   end
 
+  pipeline :ussd do
+    plug :accepts, ["x-www-form-urlencoded"]
+  end
+
   scope "/", AiposWeb do
     pipe_through :browser
   end
@@ -57,6 +61,12 @@ defmodule AiposWeb.Router do
     end
 
     post "/users/log_in", UserSessionController, :create
+  end
+
+  scope "/", AiposWeb do
+    pipe_through :ussd
+
+    post "/ussd", UssdMarketplaceController, :handle_ussd
   end
 
   scope "/", AiposWeb do

@@ -10,6 +10,7 @@ defmodule Aipos.Application do
     children = [
       AiposWeb.Telemetry,
       Aipos.Repo,
+      {Cachex, name: :ussd_session_cache},
       {DNSCluster, query: Application.get_env(:aipos, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Aipos.PubSub},
       # Start the Finch HTTP client for sending emails
