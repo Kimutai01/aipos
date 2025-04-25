@@ -11,6 +11,11 @@ defmodule Aipos.ProductSkus.ProductSku do
     field :name, :string
     field :price, :decimal
     field :rfid_tag, :string
+    field :ai_ingredients, :string
+    field :ai_nutritional_info, :string
+    field :ai_health_benefits, :string
+    field :ai_usage_instructions, :string
+    field :ai_additional_info, :string
     field :stock_quantity, :integer
     belongs_to :product, Aipos.Products.Product
     timestamps(type: :utc_datetime)
@@ -38,12 +43,28 @@ defmodule Aipos.ProductSkus.ProductSku do
       :organization_id,
       :user_id,
       :temp_id,
-      :delete
+      :delete,
+      :ai_ingredients,
+      :ai_nutritional_info,
+      :ai_health_benefits,
+      :ai_usage_instructions,
+      :ai_additional_info
     ])
     |> validate_required([:name])
     |> foreign_key_constraint(:product_id)
     |> unique_constraint(:barcode, message: "has already been registered")
     |> maybe_mark_for_deletion()
+  end
+
+  def ai_info_changeset(product, attrs) do
+    product
+    |> cast(attrs, [
+      :ai_ingredients,
+      :ai_nutritional_info,
+      :ai_health_benefits,
+      :ai_usage_instructions,
+      :ai_additional_info
+    ])
   end
 
   defp maybe_mark_for_deletion(%{data: %{id: nil}} = changeset), do: changeset

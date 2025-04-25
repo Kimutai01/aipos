@@ -100,14 +100,12 @@ defmodule AiposWeb.ProductLive.FormComponent do
         {:ok, AiposWeb.Endpoint.static_path("/uploads/#{filename}")}
       end)
 
-    # Update params with logo path
     product_params =
       case uploaded_files do
         [image_path | _] -> Map.put(product_params, "image", image_path)
         _ -> product_params
       end
 
-    # Set organization_id if needed
     product_params =
       Map.put(product_params, "organization_id", socket.assigns.current_user.organization_id)
 
@@ -116,7 +114,6 @@ defmodule AiposWeb.ProductLive.FormComponent do
     save_product(socket, socket.assigns.action, product_params)
   end
 
-  # Shows the SKU form (modal)
   def handle_event("show_sku_form", _, socket) do
     {:noreply,
      socket
@@ -136,7 +133,6 @@ defmodule AiposWeb.ProductLive.FormComponent do
     current_sku = socket.assigns.current_sku
 
     if current_sku.name && current_sku.name != "" do
-      # Handle SKU image upload
       uploaded_files =
         consume_uploaded_entries(socket, :sku_image, fn %{path: path}, entry ->
           uploads_dir = Path.join(["priv", "static", "uploads"])
@@ -150,14 +146,12 @@ defmodule AiposWeb.ProductLive.FormComponent do
           {:ok, AiposWeb.Endpoint.static_path("/uploads/#{filename}")}
         end)
 
-      # Update current_sku with image path if available
       current_sku =
         case uploaded_files do
           [image_path | _] -> Map.put(current_sku, :image, image_path)
           _ -> current_sku
         end
 
-      # Ensure the organization_id is set from the current user
       current_sku =
         Map.put(current_sku, :organization_id, socket.assigns.current_user.organization_id)
 
@@ -282,7 +276,6 @@ defmodule AiposWeb.ProductLive.FormComponent do
             barcode: sku.barcode,
             price: sku.price,
             cost: sku.cost,
-            # Convert these to integers explicitly
             stock_quantity: ensure_integer(sku.stock_quantity),
             buffer_level: ensure_integer(sku.buffer_level),
             rfid_tag: sku.rfid_tag,
@@ -295,7 +288,6 @@ defmodule AiposWeb.ProductLive.FormComponent do
           ProductSkus.get_product_sku!(product_id, sku.id)
           |> ProductSkus.update_product_sku(sku_params)
 
-        # If it doesn't have an ID, create it
         true ->
           sku_params = %{
             name: sku.name,
@@ -303,7 +295,6 @@ defmodule AiposWeb.ProductLive.FormComponent do
             barcode: sku.barcode || "",
             price: Decimal.new(sku.price),
             cost: Decimal.new(sku.cost),
-            # Convert these to integers explicitly
             stock_quantity: ensure_integer(sku.stock_quantity) || 0,
             buffer_level: ensure_integer(sku.buffer_level) || 10,
             rfid_tag: sku.rfid_tag || "",
@@ -319,7 +310,6 @@ defmodule AiposWeb.ProductLive.FormComponent do
     end)
   end
 
-  # Add this helper function to ensure values are converted to integers
   defp ensure_integer(nil), do: nil
   defp ensure_integer(value) when is_integer(value), do: value
 
@@ -440,7 +430,7 @@ defmodule AiposWeb.ProductLive.FormComponent do
               <% end %>
             </div>
           </div>
-
+          
     <!-- SKUs Section -->
           <div class="border-t border-gray-200 pt-6">
             <div class="flex justify-between items-center mb-4">
@@ -452,7 +442,7 @@ defmodule AiposWeb.ProductLive.FormComponent do
                 Add different sizes, packages, or variants of this product
               </div>
             </div>
-
+            
     <!-- SKU Table -->
             <%= if @skus != [] do %>
               <div class="mb-4 overflow-x-auto">
@@ -569,7 +559,7 @@ defmodule AiposWeb.ProductLive.FormComponent do
                 No variants added yet. Add your first variant below.
               </div>
             <% end %>
-
+            
     <!-- Button to add SKU -->
             <div class="mt-4">
               <button
@@ -596,7 +586,6 @@ defmodule AiposWeb.ProductLive.FormComponent do
           </div>
         </.form>
       </div>
-
 
       <%= if @show_sku_form do %>
         <div class="fixed inset-0 flex items-center justify-center z-50">
@@ -707,7 +696,7 @@ defmodule AiposWeb.ProductLive.FormComponent do
                       rows="2"
                     ><%= @current_sku.description %></textarea>
                   </div>
-
+                  
     <!-- Add SKU Image Upload -->
                   <div>
                     <label class="block text-sm font-medium text-gray-700">
@@ -767,7 +756,7 @@ defmodule AiposWeb.ProductLive.FormComponent do
                       </div>
                     <% end %>
                   </div>
-
+                  
     <!-- Hidden field for organization_id -->
                   <input
                     type="hidden"

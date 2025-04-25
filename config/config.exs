@@ -7,6 +7,8 @@
 # General application configuration
 import Config
 
+config :tesla, adapter: Tesla.Adapter.Mint
+
 config :aipos,
   ecto_repos: [Aipos.Repo],
   generators: [timestamp_type: :utc_datetime]

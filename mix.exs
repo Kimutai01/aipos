@@ -62,7 +62,9 @@ defmodule Aipos.MixProject do
       {:ex_heroicons, "~> 3.1.0"},
       {:httpoison, "~> 2.2"},
       {:timex, "~> 3.7"},
-      {:cachex, "~> 3.4"}
+      {:cachex, "~> 3.4"},
+      {:tesla, "~> 1.11"},
+      {:mint, "~> 1.0"}
     ]
   end
 

@@ -13,12 +13,21 @@ defmodule AiposWeb.ProductSkuLive.Index do
     socket =
       socket
       |> assign(:active_page, "products")
+      |> assign(:expanded_sku_infos, %{})
       |> assign(:current_user, socket.assigns.current_user)
       |> assign(:current_organization, get_organization(socket.assigns.current_user))
       |> assign(:product, product)
       |> assign(:product_skus, product_skus)
 
     {:ok, socket}
+  end
+
+  def handle_event("toggle_ai_info", %{"id" => sku_id}, socket) do
+    sku_id = String.to_integer(sku_id)
+    expanded_sku_infos = socket.assigns.expanded_sku_infos
+    updated_expanded = Map.update(expanded_sku_infos, sku_id, true, fn current -> !current end)
+
+    {:noreply, assign(socket, :expanded_sku_infos, updated_expanded)}
   end
 
   @impl true
@@ -113,6 +122,13 @@ defmodule AiposWeb.ProductSkuLive.Index do
         </header>
 
         <main class="mx-auto max-w-7xl py-6 px-4 sm:px-6 lg:px-8">
+          <%= for sku <- @product_skus do %>
+            <AiposWeb.Components.SkuAiInfo.sku_ai_info
+              sku={sku}
+              show_info={Map.get(@expanded_sku_infos, sku.id, false)}
+            />
+          <% end %>
+
           <div class="bg-white shadow rounded-lg">
             <div class="overflow-x-auto">
               <table class="min-w-full divide-y divide-gray-200">
@@ -248,16 +264,13 @@ defmodule AiposWeb.ProductSkuLive.Index do
     """
   end
 
-  # Helper function to format price values
   defp format_price(nil), do: "0.00"
 
-  # Handle Decimal type (most likely case in your schema)
   defp format_price(%Decimal{} = price) do
     price
     |> Decimal.to_string()
   end
 
-  # Handle string values
   defp format_price(price) when is_binary(price) do
     case Float.parse(price) do
       {float_price, _} -> :erlang.float_to_binary(float_price, decimals: 2)
@@ -265,16 +278,13 @@ defmodule AiposWeb.ProductSkuLive.Index do
     end
   end
 
-  # Handle integer values
   defp format_price(price) when is_integer(price) do
     :erlang.float_to_binary(price / 100, decimals: 2)
   end
 
-  # Handle float values
   defp format_price(price) when is_float(price) do
     :erlang.float_to_binary(price, decimals: 2)
   end
 
-  # Default fallback
   defp format_price(_), do: "0.00"
 end

@@ -59,7 +59,22 @@ defmodule Aipos.ProductSkus do
     %ProductSku{}
     |> ProductSku.changeset(attrs)
     |> Repo.insert()
+    |> get_ai_info()
   end
+
+  defp get_ai_info({:ok, product_sku}) do
+    case Aipos.Gemini.update_product_with_ai_info(
+           product_sku.id,
+           product_sku.name,
+           product_sku.description,
+           product_sku.image
+         ) do
+      {:ok, updated_product_sku} -> {:ok, updated_product_sku}
+      _ -> {:ok, product_sku}
+    end
+  end
+
+  defp get_ai_info(error), do: error
 
   @doc """
   Updates a product_sku.
@@ -94,6 +109,20 @@ defmodule Aipos.ProductSkus do
   def delete_product_sku(%ProductSku{} = product_sku) do
     Repo.delete(product_sku)
   end
+
+  def update_product_ai_info(product_id, ai_attrs) do
+    case get_product(product_id) do
+      nil ->
+        {:error, :not_found}
+
+      product ->
+        product
+        |> ProductSku.ai_info_changeset(ai_attrs)
+        |> Repo.update()
+    end
+  end
+
+  def get_product(id), do: Repo.get(ProductSku, id)
 
   @doc """
   Returns an `%Ecto.Changeset{}` for tracking product_sku changes.
