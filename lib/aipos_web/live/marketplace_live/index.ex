@@ -31,6 +31,11 @@ defmodule AiposWeb.MarketplaceLive.Index do
       # Track last scanned barcode
       |> assign(:last_scanned_barcode, nil)
       |> assign(:scan_status, nil)
+      |> assign(:scanned_product_sku, nil)
+      |> assign(:current_ai_tab, "ingredients")
+      |> assign(:ingredients, [])
+      |> assign(:nutritional_info, %{})
+      |> assign(:health_benefits, [])
 
     {:ok, socket}
   end
@@ -60,8 +65,7 @@ defmodule AiposWeb.MarketplaceLive.Index do
        |> put_flash(:error, "Please select a store before scanning products")}
     else
       # Search for product by barcode
-      case find_product_by_barcode(barcode, socket.assigns.selected_organization.id)
-           |> IO.inspect() do
+      case find_product_by_barcode(barcode, socket.assigns.selected_organization.id) do
         nil ->
           {:noreply,
            socket
@@ -77,18 +81,21 @@ defmodule AiposWeb.MarketplaceLive.Index do
              |> assign(:scan_status, "Out of stock")
              |> put_flash(:error, "Product is out of stock")}
           else
-            # Add product to cart
-            cart_items = add_to_cart(socket.assigns.cart_items, product_sku)
-            total = calculate_total(cart_items)
+            # Parse AI information
+            ingredients = parse_json_field(product_sku.ai_ingredients, [])
+            nutritional_info = parse_json_field(product_sku.ai_nutritional_info, %{})
+            health_benefits = parse_json_field(product_sku.ai_health_benefits, [])
 
+            # Show the product info modal instead of immediately adding to cart
             {:noreply,
              socket
-             |> assign(:cart_items, cart_items)
-             |> assign(:total_amount, total)
              |> assign(:last_scanned_barcode, barcode)
-             |> assign(:scan_status, "Added to cart")
-             |> assign(:show_cart, true)
-             |> put_flash(:info, "Added #{product_sku.name} to cart")}
+             |> assign(:scan_status, "Product found")
+             |> assign(:scanned_product_sku, product_sku)
+             |> assign(:ingredients, ingredients)
+             |> assign(:nutritional_info, nutritional_info)
+             |> assign(:health_benefits, health_benefits)
+             |> assign(:current_ai_tab, "ingredients")}
           end
       end
     end
@@ -103,6 +110,64 @@ defmodule AiposWeb.MarketplaceLive.Index do
       preload: [:product]
     )
     |> Aipos.Repo.one()
+  end
+
+  # Helper function to safely parse JSON fields
+  defp parse_json_field(json_string, default) do
+    if is_nil(json_string) || json_string == "" do
+      default
+    else
+      case Jason.decode(json_string) do
+        {:ok, parsed} -> parsed
+        _ -> default
+      end
+    end
+  end
+
+  # Add handlers for the new modal actions
+
+  def handle_event("close_scan_modal", _, socket) do
+    {:noreply, assign(socket, :scanned_product_sku, nil)}
+  end
+
+  def handle_event("change_ai_tab", %{"tab" => tab}, socket) do
+    {:noreply, assign(socket, :current_ai_tab, tab)}
+  end
+
+  def handle_event("add_scanned_to_cart", %{"sku-id" => sku_id_str}, socket) do
+    sku_id = String.to_integer(sku_id_str)
+    product_sku = socket.assigns.scanned_product_sku
+
+    # Add to cart
+    cart_items = add_to_cart(socket.assigns.cart_items, product_sku)
+    total = calculate_total(cart_items)
+
+    # Close modal and update cart
+    {:noreply,
+     socket
+     |> assign(:cart_items, cart_items)
+     |> assign(:total_amount, total)
+     |> assign(:scanned_product_sku, nil)
+     |> assign(:show_cart, true)
+     |> put_flash(:info, "Added #{product_sku.name} to cart")}
+  end
+
+  def handle_event("add_scanned_to_cart", %{"sku-id" => sku_id}, socket) do
+    sku_id = String.to_integer(sku_id)
+    product_sku = socket.assigns.scanned_product_sku
+
+    # Add to cart
+    cart_items = add_to_cart(socket.assigns.cart_items, product_sku)
+    total = calculate_total(cart_items)
+
+    # Close modal and update cart
+    {:noreply,
+     socket
+     |> assign(:cart_items, cart_items)
+     |> assign(:total_amount, total)
+     |> assign(:scanned_product_sku, nil)
+     |> assign(:show_cart, true)
+     |> put_flash(:info, "Added #{product_sku.name} to cart")}
   end
 
   def handle_event("toggle_scanner_mode", _, socket) do
@@ -247,7 +312,6 @@ defmodule AiposWeb.MarketplaceLive.Index do
     if Enum.empty?(socket.assigns.cart_items) do
       {:noreply, put_flash(socket, :error, "Cannot checkout with empty cart")}
     else
-      # Validate customer information
       customer = socket.assigns.guest_customer
 
       cond do
@@ -448,7 +512,6 @@ defmodule AiposWeb.MarketplaceLive.Index do
       </div>
     <% else %>
       <div class="flex min-h-screen flex-col bg-gray-100">
-        <!-- Simple header/navigation bar -->
         <header class="bg-white shadow z-10">
           <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex h-16 justify-between items-center">
@@ -470,7 +533,7 @@ defmodule AiposWeb.MarketplaceLive.Index do
                       else: "Enable Self-Checkout"}
                   </span>
                 </button>
-
+                
     <!-- Cart button -->
                 <button
                   type="button"
@@ -606,7 +669,7 @@ defmodule AiposWeb.MarketplaceLive.Index do
                   </div>
                 <% end %>
               </div>
-
+              
     <!-- Product listing -->
               <div>
                 <h2 class="text-xl font-semibold mb-4">
@@ -681,6 +744,207 @@ defmodule AiposWeb.MarketplaceLive.Index do
             <% end %>
           </main>
 
+          <%= if @scanned_product_sku do %>
+            <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div class="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+                <div class="p-4 border-b border-gray-200 flex justify-between items-center bg-gradient-to-r from-blue-50 to-indigo-50">
+                  <h3 class="text-lg font-semibold text-gray-900 flex items-center">
+                    <Heroicons.icon name="sparkles" class="h-5 w-5 mr-2 text-blue-500" />
+                    Product Information
+                  </h3>
+                  <button phx-click="close_scan_modal" class="text-gray-500 hover:text-gray-700">
+                    <Heroicons.icon name="x-mark" class="h-5 w-5" />
+                  </button>
+                </div>
+
+                <div class="p-4">
+                  <!-- Product header section -->
+                  <div class="flex items-center mb-4">
+                    <div class="w-20 h-20 rounded-md overflow-hidden bg-gray-200 flex-shrink-0">
+                      <%= if @scanned_product_sku.image do %>
+                        <img
+                          src={@scanned_product_sku.image}
+                          alt={@scanned_product_sku.name}
+                          class="w-full h-full object-cover"
+                        />
+                      <% else %>
+                        <div class="w-full h-full flex items-center justify-center">
+                          <Heroicons.icon name="photo" class="h-8 w-8 text-gray-400" />
+                        </div>
+                      <% end %>
+                    </div>
+                    <div class="ml-4">
+                      <h3 class="text-lg font-medium">{@scanned_product_sku.name}</h3>
+                      <p class="text-sm text-gray-500">{@scanned_product_sku.description}</p>
+                      <div class="mt-1 text-lg font-bold text-blue-600">
+                        KSh {format_money(@scanned_product_sku.price)}
+                      </div>
+                    </div>
+                  </div>
+                  
+    <!-- AI Information Tabs -->
+                  <div class="border rounded-md mt-4 mb-6">
+                    <div class="bg-gray-50 p-2 rounded-t-md border-b">
+                      <ul class="flex space-x-4">
+                        <li>
+                          <button
+                            phx-click="change_ai_tab"
+                            phx-value-tab="ingredients"
+                            class={"px-3 py-1 text-sm font-medium rounded-md #{if @current_ai_tab == "ingredients", do: "bg-blue-600 text-white", else: "text-gray-700 hover:bg-gray-100"}"}
+                          >
+                            Ingredients
+                          </button>
+                        </li>
+                        <li>
+                          <button
+                            phx-click="change_ai_tab"
+                            phx-value-tab="nutrition"
+                            class={"px-3 py-1 text-sm font-medium rounded-md #{if @current_ai_tab == "nutrition", do: "bg-blue-600 text-white", else: "text-gray-700 hover:bg-gray-100"}"}
+                          >
+                            Nutrition
+                          </button>
+                        </li>
+                        <li>
+                          <button
+                            phx-click="change_ai_tab"
+                            phx-value-tab="info"
+                            class={"px-3 py-1 text-sm font-medium rounded-md #{if @current_ai_tab == "info", do: "bg-blue-600 text-white", else: "text-gray-700 hover:bg-gray-100"}"}
+                          >
+                            Info
+                          </button>
+                        </li>
+                      </ul>
+                    </div>
+                    
+    <!-- Tab Content -->
+                    <div class="p-3">
+                      <!-- Ingredients Tab -->
+                      <%= if @current_ai_tab == "ingredients" do %>
+                        <div>
+                          <h4 class="text-sm font-medium text-gray-900 mb-2">Ingredients</h4>
+                          <%= if length(@ingredients) > 0 do %>
+                            <ul class="list-disc pl-5 text-sm text-gray-600 space-y-1">
+                              <%= for ingredient <- @ingredients do %>
+                                <li>{ingredient}</li>
+                              <% end %>
+                            </ul>
+                          <% else %>
+                            <p class="text-sm text-gray-500 italic">
+                              No ingredient information available
+                            </p>
+                          <% end %>
+                        </div>
+                      <% end %>
+                      
+    <!-- Nutrition Tab -->
+                      <%= if @current_ai_tab == "nutrition" do %>
+                        <div>
+                          <h4 class="text-sm font-medium text-gray-900 mb-2">
+                            Nutritional Information
+                          </h4>
+                          <%= if map_size(@nutritional_info) > 0 do %>
+                            <div class="grid grid-cols-2 gap-4">
+                              <%= if Map.has_key?(@nutritional_info, "calories") do %>
+                                <div class="flex flex-col p-2 bg-gray-50 rounded-md">
+                                  <span class="text-xs text-gray-500">Calories</span>
+                                  <span class="text-sm font-medium">
+                                    {@nutritional_info["calories"]}
+                                  </span>
+                                </div>
+                              <% end %>
+                              <%= if Map.has_key?(@nutritional_info, "protein") do %>
+                                <div class="flex flex-col p-2 bg-gray-50 rounded-md">
+                                  <span class="text-xs text-gray-500">Protein</span>
+                                  <span class="text-sm font-medium">
+                                    {@nutritional_info["protein"]}
+                                  </span>
+                                </div>
+                              <% end %>
+                              <%= if Map.has_key?(@nutritional_info, "carbs") do %>
+                                <div class="flex flex-col p-2 bg-gray-50 rounded-md">
+                                  <span class="text-xs text-gray-500">Carbohydrates</span>
+                                  <span class="text-sm font-medium">
+                                    {@nutritional_info["carbs"]}
+                                  </span>
+                                </div>
+                              <% end %>
+                              <%= if Map.has_key?(@nutritional_info, "fat") do %>
+                                <div class="flex flex-col p-2 bg-gray-50 rounded-md">
+                                  <span class="text-xs text-gray-500">Fat</span>
+                                  <span class="text-sm font-medium">{@nutritional_info["fat"]}</span>
+                                </div>
+                              <% end %>
+                            </div>
+                          <% else %>
+                            <p class="text-sm text-gray-500 italic">
+                              No nutritional information available
+                            </p>
+                          <% end %>
+                        </div>
+                      <% end %>
+                      
+    <!-- Additional Info Tab -->
+                      <%= if @current_ai_tab == "info" do %>
+                        <div class="space-y-3">
+                          <!-- Usage Instructions -->
+                          <%= if @scanned_product_sku.ai_usage_instructions && @scanned_product_sku.ai_usage_instructions != "" do %>
+                            <div>
+                              <h4 class="text-sm font-medium text-gray-900 mb-1">How to Use</h4>
+                              <p class="text-sm text-gray-600">
+                                {@scanned_product_sku.ai_usage_instructions}
+                              </p>
+                            </div>
+                          <% end %>
+                          
+    <!-- Health Benefits -->
+                          <%= if length(@health_benefits) > 0 do %>
+                            <div>
+                              <h4 class="text-sm font-medium text-gray-900 mb-1">Health Benefits</h4>
+                              <ul class="list-disc pl-5 text-sm text-gray-600 space-y-1">
+                                <%= for benefit <- @health_benefits do %>
+                                  <li>{benefit}</li>
+                                <% end %>
+                              </ul>
+                            </div>
+                          <% end %>
+                          
+    <!-- Additional Information -->
+                          <%= if @scanned_product_sku.ai_additional_info && @scanned_product_sku.ai_additional_info != "" do %>
+                            <div>
+                              <h4 class="text-sm font-medium text-gray-900 mb-1">
+                                Additional Information
+                              </h4>
+                              <p class="text-sm text-gray-600">
+                                {@scanned_product_sku.ai_additional_info}
+                              </p>
+                            </div>
+                          <% end %>
+                        </div>
+                      <% end %>
+                    </div>
+                  </div>
+                  
+    <!-- Action Buttons -->
+                  <div class="flex gap-3">
+                    <button
+                      phx-click="close_scan_modal"
+                      class="flex-1 py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      phx-click="add_scanned_to_cart"
+                      phx-value-sku-id={@scanned_product_sku.id}
+                      class="flex-1 py-2 px-4 bg-blue-600 border border-transparent rounded-md shadow-sm text-sm font-medium text-white hover:bg-blue-700"
+                    >
+                      Add to Cart
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          <% end %>
+          
     <!-- Cart sidebar - toggleable on both mobile and desktop, sticky positioning -->
           <aside class={"bg-white shadow-lg transition-all duration-300 overflow-hidden z-20
           #{if @show_cart, do: "w-full md:w-96", else: "w-0"}
@@ -713,7 +977,7 @@ defmodule AiposWeb.MarketplaceLive.Index do
                           </div>
                         <% end %>
                       </div>
-
+                      
     <!-- Item details -->
                       <div class="flex-1 min-w-0">
                         <div class="font-medium truncate">{item.name}</div>
@@ -761,7 +1025,7 @@ defmodule AiposWeb.MarketplaceLive.Index do
                     </div>
                   <% end %>
                 </div>
-
+                
     <!-- Cart summary -->
                 <div class="border-t pt-4 mt-auto">
                   <div class="flex justify-between text-sm">
@@ -798,7 +1062,7 @@ defmodule AiposWeb.MarketplaceLive.Index do
             </div>
           </aside>
         </div>
-
+        
     <!-- Checkout form overlay -->
         <%= if @show_checkout_form do %>
           <div class="fixed inset-0 bg-gray-700 bg-opacity-75 flex items-center justify-center z-50 p-4">
@@ -810,7 +1074,7 @@ defmodule AiposWeb.MarketplaceLive.Index do
                     <Heroicons.icon name="x-mark" class="h-6 w-6" />
                   </button>
                 </div>
-
+                
     <!-- Contact information -->
                 <div class="mb-6">
                   <h3 class="text-lg font-medium mb-4">Contact Information</h3>
@@ -850,7 +1114,7 @@ defmodule AiposWeb.MarketplaceLive.Index do
                     </div>
                   </form>
                 </div>
-
+                
     <!-- Order summary -->
                 <div class="mb-6">
                   <h3 class="text-lg font-medium mb-2">Order Summary</h3>
@@ -897,7 +1161,7 @@ defmodule AiposWeb.MarketplaceLive.Index do
                     </div>
                   </div>
                 </div>
-
+                
     <!-- Payment method selection -->
                 <div class="mb-6">
                   <h3 class="text-lg font-medium mb-2">Payment Method</h3>

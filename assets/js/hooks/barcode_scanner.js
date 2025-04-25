@@ -4,12 +4,21 @@ import Quagga from '@ericblade/quagga2';
 const BarcodeScanner = {
   mounted() {
     this.setupUI();
+    this.lastScannedBarcode = null;
+    this.lastScanTime = 0;
+    this.scanCooldown = 3000; // 3 seconds cooldown between same barcode scans
 
     // Close scanner when escape key is pressed
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && this.isScanning) {
         this.stopScanner();
       }
+    });
+    
+    // Listen for AI modal events from server
+    this.handleEvent("scan_success", () => {
+      // Server confirmed scan was successful, stop scanner
+      this.stopScanner();
     });
   },
 
@@ -133,20 +142,6 @@ const BarcodeScanner = {
     }
   },
 
-  mounted() {
-    this.setupUI();
-    this.lastScannedBarcode = null;
-    this.lastScanTime = 0;
-    this.scanCooldown = 3000; // 3 seconds cooldown between same barcode scans
-
-    // Close scanner when escape key is pressed
-    window.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && this.isScanning) {
-        this.stopScanner();
-      }
-    });
-  },
-
   handleBarcodeDetection(result) {
     // Get barcode
     const barcode = result.codeResult.code;
@@ -175,10 +170,16 @@ const BarcodeScanner = {
     // Push barcode to the server
     this.pushEvent("barcode_scanned", { barcode });
     
-    // Stop scanner after successful scan
+    // We'll now let the server respond with a "scan_success" event to close the scanner
+    // This way we keep it open if product not found or other error
+    this.statusText.textContent = `Processing: ${barcode}...`;
+    
+    // Add a timeout for safety
     setTimeout(() => {
-      this.stopScanner();
-    }, 1000);
+      if (this.isScanning) {
+        this.stopScanner();
+      }
+    }, 5000);
   }
 };
 
