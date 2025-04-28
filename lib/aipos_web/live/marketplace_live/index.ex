@@ -533,7 +533,7 @@ defmodule AiposWeb.MarketplaceLive.Index do
                       else: "Enable Self-Checkout"}
                   </span>
                 </button>
-                
+
     <!-- Cart button -->
                 <button
                   type="button"
@@ -669,7 +669,7 @@ defmodule AiposWeb.MarketplaceLive.Index do
                   </div>
                 <% end %>
               </div>
-              
+
     <!-- Product listing -->
               <div>
                 <h2 class="text-xl font-semibold mb-4">
@@ -781,7 +781,7 @@ defmodule AiposWeb.MarketplaceLive.Index do
                       </div>
                     </div>
                   </div>
-                  
+
     <!-- AI Information Tabs -->
                   <div class="border rounded-md mt-4 mb-6">
                     <div class="bg-gray-50 p-2 rounded-t-md border-b">
@@ -815,7 +815,7 @@ defmodule AiposWeb.MarketplaceLive.Index do
                         </li>
                       </ul>
                     </div>
-                    
+
     <!-- Tab Content -->
                     <div class="p-3">
                       <!-- Ingredients Tab -->
@@ -835,7 +835,7 @@ defmodule AiposWeb.MarketplaceLive.Index do
                           <% end %>
                         </div>
                       <% end %>
-                      
+
     <!-- Nutrition Tab -->
                       <%= if @current_ai_tab == "nutrition" do %>
                         <div>
@@ -882,7 +882,7 @@ defmodule AiposWeb.MarketplaceLive.Index do
                           <% end %>
                         </div>
                       <% end %>
-                      
+
     <!-- Additional Info Tab -->
                       <%= if @current_ai_tab == "info" do %>
                         <div class="space-y-3">
@@ -895,7 +895,7 @@ defmodule AiposWeb.MarketplaceLive.Index do
                               </p>
                             </div>
                           <% end %>
-                          
+
     <!-- Health Benefits -->
                           <%= if length(@health_benefits) > 0 do %>
                             <div>
@@ -907,7 +907,7 @@ defmodule AiposWeb.MarketplaceLive.Index do
                               </ul>
                             </div>
                           <% end %>
-                          
+
     <!-- Additional Information -->
                           <%= if @scanned_product_sku.ai_additional_info && @scanned_product_sku.ai_additional_info != "" do %>
                             <div>
@@ -923,7 +923,7 @@ defmodule AiposWeb.MarketplaceLive.Index do
                       <% end %>
                     </div>
                   </div>
-                  
+
     <!-- Action Buttons -->
                   <div class="flex gap-3">
                     <button
@@ -944,7 +944,7 @@ defmodule AiposWeb.MarketplaceLive.Index do
               </div>
             </div>
           <% end %>
-          
+
     <!-- Cart sidebar - toggleable on both mobile and desktop, sticky positioning -->
           <aside class={"bg-white shadow-lg transition-all duration-300 overflow-hidden z-20
           #{if @show_cart, do: "w-full md:w-96", else: "w-0"}
@@ -977,7 +977,7 @@ defmodule AiposWeb.MarketplaceLive.Index do
                           </div>
                         <% end %>
                       </div>
-                      
+
     <!-- Item details -->
                       <div class="flex-1 min-w-0">
                         <div class="font-medium truncate">{item.name}</div>
@@ -1025,7 +1025,7 @@ defmodule AiposWeb.MarketplaceLive.Index do
                     </div>
                   <% end %>
                 </div>
-                
+
     <!-- Cart summary -->
                 <div class="border-t pt-4 mt-auto">
                   <div class="flex justify-between text-sm">
@@ -1062,7 +1062,7 @@ defmodule AiposWeb.MarketplaceLive.Index do
             </div>
           </aside>
         </div>
-        
+
     <!-- Checkout form overlay -->
         <%= if @show_checkout_form do %>
           <div class="fixed inset-0 bg-gray-700 bg-opacity-75 flex items-center justify-center z-50 p-4">
@@ -1074,7 +1074,7 @@ defmodule AiposWeb.MarketplaceLive.Index do
                     <Heroicons.icon name="x-mark" class="h-6 w-6" />
                   </button>
                 </div>
-                
+
     <!-- Contact information -->
                 <div class="mb-6">
                   <h3 class="text-lg font-medium mb-4">Contact Information</h3>
@@ -1114,7 +1114,7 @@ defmodule AiposWeb.MarketplaceLive.Index do
                     </div>
                   </form>
                 </div>
-                
+
     <!-- Order summary -->
                 <div class="mb-6">
                   <h3 class="text-lg font-medium mb-2">Order Summary</h3>
@@ -1161,7 +1161,7 @@ defmodule AiposWeb.MarketplaceLive.Index do
                     </div>
                   </div>
                 </div>
-                
+
     <!-- Payment method selection -->
                 <div class="mb-6">
                   <h3 class="text-lg font-medium mb-2">Payment Method</h3>

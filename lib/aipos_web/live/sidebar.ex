@@ -92,21 +92,6 @@ defmodule AiposWeb.Sidebar do
 
             <li>
               <a
-                href="/promotions"
-                class={
-                  active_class(
-                    @active_page == "promotions",
-                    "flex items-center py-2 px-4 text-white hover:bg-gray-700 rounded-lg"
-                  )
-                }
-              >
-                <Heroicons.icon name="gift" type="solid" class="h-5 w-5 mr-3 text-amber-400" />
-                <span>Promotions</span>
-              </a>
-            </li>
-
-            <li>
-              <a
                 href="/suppliers"
                 class={
                   active_class(

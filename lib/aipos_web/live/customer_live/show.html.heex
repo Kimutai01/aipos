@@ -1,0 +1,313 @@
+<div class="flex h-screen bg-gray-100">
+  <Sidebar.render
+    active_page={@active_page}
+    current_user={@current_user}
+    current_organization={@current_organization}
+  />
+
+  <div class="flex-1 ml-64 flex flex-col overflow-hidden">
+    <header class="bg-white shadow">
+      <div class="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
+        <h1 class="text-2xl font-bold text-gray-900">Customer Details</h1>
+
+        <div>
+          <.link
+            patch={~p"/customers/#{@customer}/show/edit"}
+            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
+          >
+            <Heroicons.icon name="pencil-square" class="h-5 w-5 mr-2" /> Edit Customer
+          </.link>
+        </div>
+      </div>
+    </header>
+
+    <div class="flex-1 overflow-auto p-6">
+      <div class="bg-white shadow rounded-lg">
+        <!-- Profile -->
+        <div class="px-6 py-4 border-b border-gray-200">
+          <div class="flex items-center">
+            <div class="h-20 w-20 rounded-full bg-blue-100 flex items-center justify-center">
+              <span class="text-blue-800 font-bold text-2xl">
+                {String.first(@customer.name || "")}
+              </span>
+            </div>
+            <div class="ml-4">
+              <h3 class="text-xl font-medium">{@customer.name}</h3>
+              <div class="mt-1 text-sm text-gray-500">
+                <div class="flex items-center">
+                  <Heroicons.icon name="phone" class="h-4 w-4 mr-1 text-gray-400" />
+                  <span>{@customer.phone}</span>
+                </div>
+                <%= if @customer.email do %>
+                  <div class="flex items-center mt-1">
+                    <Heroicons.icon name="envelope" class="h-4 w-4 mr-1 text-gray-400" />
+                    <span>{@customer.email}</span>
+                  </div>
+                <% end %>
+                <%= if @customer.address do %>
+                  <div class="flex items-center mt-1">
+                    <Heroicons.icon name="map-pin" class="h-4 w-4 mr-1 text-gray-400" />
+                    <span>{@customer.address}</span>
+                  </div>
+                <% end %>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+<!-- Stats -->
+        <div class="px-6 py-4 border-b border-gray-200">
+          <h3 class="text-lg font-medium mb-3">Overview</h3>
+          <div class="grid grid-cols-4 gap-4">
+            <div class="bg-gray-50 p-3 rounded-lg">
+              <div class="text-xs text-gray-500">Total Spent</div>
+              <div class="text-xl font-bold">
+                {format_currency(@customer.total_spent)}
+              </div>
+            </div>
+            <div class="bg-gray-50 p-3 rounded-lg">
+              <div class="text-xs text-gray-500">Total Orders</div>
+              <div class="text-xl font-bold">{@customer.total_orders}</div>
+            </div>
+            <div class="bg-gray-50 p-3 rounded-lg">
+              <div class="text-xs text-gray-500">Last Purchase</div>
+              <div class="text-xl font-bold">{@customer.days_since_last_purchase} days ago</div>
+            </div>
+            <div class="bg-gray-50 p-3 rounded-lg">
+              <div class="text-xs text-gray-500">Loyalty Status</div>
+              <div class="text-xl font-bold">{@customer.membership_level}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Loyalty Column -->
+        <div>
+          <div class="bg-white shadow rounded-lg">
+            <div class="px-6 py-4 border-b border-gray-200">
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="text-lg font-medium">Loyalty Program</h3>
+
+                <form phx-submit="add_loyalty_points" class="flex items-center">
+                  <input
+                    type="number"
+                    name="points"
+                    min="1"
+                    placeholder="Points"
+                    class="w-20 border rounded-l-md shadow-sm py-1 px-2 text-sm"
+                  />
+                  <button
+                    type="submit"
+                    class="inline-flex items-center px-3 py-1 border border-l-0 border-transparent rounded-r-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+                  >
+                    Add
+                  </button>
+                </form>
+              </div>
+
+              <div class="bg-gray-50 p-4 rounded-lg mb-4">
+                <div class="flex items-center justify-between mb-2">
+                  <div>
+                    <span class={"px-2 py-0.5 rounded-full text-white text-xs font-medium #{membership_level_color(@customer.membership_level)}"}>
+                      {@customer.membership_level}
+                    </span>
+                    <span class="ml-2 text-sm font-medium">
+                      {@customer.loyalty_points} points
+                    </span>
+                  </div>
+
+                  <% next_tier = next_membership_tier(@customer.loyalty_points, @loyalty_tiers) %>
+                  <%= if next_tier do %>
+                    <div class="text-xs text-gray-500">
+                      {next_tier.min_points - @customer.loyalty_points} points to {next_tier.name}
+                    </div>
+                  <% end %>
+                </div>
+                
+<!-- Progress bar -->
+                <div class="w-full bg-gray-200 rounded-full h-2.5">
+                  <% current_tier =
+                    current_membership_tier(@customer.loyalty_points, @loyalty_tiers) %>
+                  <% next_tier = next_membership_tier(@customer.loyalty_points, @loyalty_tiers) %>
+
+                  <%= if next_tier do %>
+                    <div
+                      class="bg-blue-600 h-2.5 rounded-full"
+                      style={"width: #{calculate_progress_percentage(@customer.loyalty_points, current_tier.min_points, next_tier.min_points)}%"}
+                    >
+                    </div>
+                  <% else %>
+                    <div class="bg-blue-600 h-2.5 rounded-full w-full"></div>
+                  <% end %>
+                </div>
+              </div>
+              
+<!-- Loyalty Tiers Info -->
+              <div class="mb-4">
+                <h4 class="text-sm font-medium mb-2">Membership Tiers & Benefits</h4>
+                <div class="space-y-2">
+                  <%= for tier <- @loyalty_tiers do %>
+                    <div class={"p-2 rounded-md border-l-4 #{tier_border_color(tier.name)} #{if tier.name == @customer.membership_level, do: "bg-blue-50", else: "bg-white"}"}>
+                      <div class="flex justify-between">
+                        <span class="font-medium">{tier.name}</span>
+                        <span class="text-sm text-gray-500">{tier.min_points}+ points</span>
+                      </div>
+                      <p class="text-xs text-gray-600 mt-1">{tier.benefits}</p>
+                    </div>
+                  <% end %>
+                </div>
+              </div>
+            </div>
+
+            <div class="px-6 py-4">
+              <h4 class="text-sm font-medium mb-2">Points History</h4>
+              <div class="max-h-60 overflow-y-auto border rounded-md">
+                <table class="min-w-full divide-y divide-gray-200">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th class="px-3 py-2 text-left text-xs font-medium text-gray-500">
+                        Date
+                      </th>
+                      <th class="px-3 py-2 text-left text-xs font-medium text-gray-500">
+                        Points
+                      </th>
+                      <th class="px-3 py-2 text-left text-xs font-medium text-gray-500">
+                        Details
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody class="bg-white divide-y divide-gray-200">
+                    <%= if @loyalty_history && length(@loyalty_history) > 0 do %>
+                      <%= for entry <- @loyalty_history do %>
+                        <tr>
+                          <td class="px-3 py-2 whitespace-nowrap text-xs">
+                            {Calendar.strftime(entry.date, "%b %d, %Y")}
+                          </td>
+                          <td class="px-3 py-2 whitespace-nowrap text-xs">
+                            <span class={"font-medium #{if entry.type == "credit", do: "text-green-600", else: "text-red-600"}"}>
+                              {if entry.type == "credit", do: "+", else: "-"}{abs(entry.points)}
+                            </span>
+                          </td>
+                          <td class="px-3 py-2 whitespace-nowrap text-xs text-gray-500">
+                            {entry.reason}
+                          </td>
+                        </tr>
+                      <% end %>
+                    <% else %>
+                      <tr>
+                        <td colspan="3" class="px-3 py-2 text-center text-xs text-gray-500">
+                          No loyalty history available
+                        </td>
+                      </tr>
+                    <% end %>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+<!-- Purchase History Column -->
+        <div>
+          <div class="bg-white shadow rounded-lg">
+            <div class="px-6 py-4 border-b border-gray-200">
+              <h3 class="text-lg font-medium">Purchase History</h3>
+            </div>
+
+            <div class="px-6 py-4">
+              <%= if @purchase_history && length(@purchase_history) > 0 do %>
+                <div class="space-y-4">
+                  <%= for purchase <- @purchase_history do %>
+                    <div class="border rounded-md overflow-hidden">
+                      <div class="bg-gray-50 px-4 py-2 flex justify-between items-center">
+                        <div>
+                          <span class="font-medium">Receipt #{purchase.receipt_number}</span>
+                          <span class="ml-2 text-sm text-gray-500">
+                            {Calendar.strftime(purchase.date, "%b %d, %Y")}
+                          </span>
+                        </div>
+                        <div>
+                          <span class="font-medium">{format_currency(purchase.total)}</span>
+                          <span class="ml-2 px-2 py-0.5 rounded-full bg-gray-200 text-xs">
+                            {purchase.payment_method}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div class="px-4 py-2">
+                        <table class="min-w-full">
+                          <thead>
+                            <tr class="text-xs text-gray-500 border-b">
+                              <th class="text-left py-1">Item</th>
+                              <th class="text-right py-1">Qty</th>
+                              <th class="text-right py-1">Price</th>
+                              <th class="text-right py-1">Total</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <%= for item <- purchase.items do %>
+                              <tr class="text-sm">
+                                <td class="py-1">{item.name}</td>
+                                <td class="py-1 text-right">{item.quantity}</td>
+                                <td class="py-1 text-right">{format_currency(item.price)}</td>
+                                <td class="py-1 text-right font-medium">
+                                  {format_currency(item.price * item.quantity)}
+                                </td>
+                              </tr>
+                            <% end %>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  <% end %>
+                </div>
+              <% else %>
+                <div class="text-center py-8 text-gray-500">
+                  <p>No purchase history available for this customer.</p>
+                </div>
+              <% end %>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-6 flex justify-between">
+        <.link
+          navigate={~p"/customers"}
+          class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+        >
+          <Heroicons.icon name="arrow-left" class="h-5 w-5 mr-2" /> Back to Customers
+        </.link>
+
+        <div class="flex space-x-3">
+          <button class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+            <Heroicons.icon name="envelope" class="h-5 w-5 mr-2 inline" /> Send Message
+          </button>
+          <.link
+            patch={~p"/customers/#{@customer}/show/edit"}
+            class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+          >
+            <Heroicons.icon name="pencil-square" class="h-5 w-5 mr-2" /> Edit Customer
+          </.link>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<.modal
+  :if={@live_action == :edit}
+  id="customer-modal"
+  show
+  on_cancel={JS.patch(~p"/customers/#{@customer}")}
+>
+  <.live_component
+    module={AiposWeb.CustomerLive.FormComponent}
+    id={@customer.id}
+    title="Edit Customer"
+    action={@live_action}
+    customer={@customer}
+    patch={~p"/customers/#{@customer}"}
+  />
+</.modal>

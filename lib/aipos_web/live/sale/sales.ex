@@ -10,17 +10,12 @@ defmodule AiposWeb.Sale.Sales do
 
   @impl true
   def mount(_params, session, socket) do
-    # Extract user ID and organization ID from the session
-    user_id = session["user_id"]
-    organization_id = session["organization_id"]
-
     # Fetch current user and organization
     current_user = Aipos.Accounts.get_user!(socket.assigns.current_user.id)
 
     current_organization =
       Aipos.Organizations.get_organization!(socket.assigns.current_user.organization_id)
 
-    # Set the selected date to today
     selected_date = Date.utc_today()
 
     socket =
@@ -133,23 +128,25 @@ defmodule AiposWeb.Sale.Sales do
     start_datetime = DateTime.new!(date, ~T[00:00:00Z], "Etc/UTC")
     end_datetime = DateTime.new!(date, ~T[23:59:59Z], "Etc/UTC")
 
-    # Query sales for the day
+    # Query sales for the day - including both "completed" and "pending" statuses
     sales_query =
       from s in Sale,
         where:
           s.organization_id == ^organization_id and
             s.inserted_at >= ^start_datetime and
-            s.inserted_at <= ^end_datetime and
-            s.status == "completed",
+            s.inserted_at <= ^end_datetime,
         preload: [:cashier]
 
-    sales = Repo.all(sales_query)
+    all_sales = Repo.all(sales_query)
 
-    # Calculate totals
+    IO.inspect(all_sales, label: "All Sales")
+
     total_amount =
-      Enum.reduce(sales, Decimal.new(0), fn sale, acc -> Decimal.add(acc, sale.total_amount) end)
+      Enum.reduce(all_sales, Decimal.new(0), fn sale, acc ->
+        Decimal.add(acc, sale.total_amount)
+      end)
 
-    total_sales = length(sales)
+    total_sales = length(all_sales)
 
     # Calculate average sale
     average_sale =
@@ -159,16 +156,12 @@ defmodule AiposWeb.Sale.Sales do
         Decimal.new(0)
       end
 
-    # Get all sale items for the day
+    # Get all sale items for completed sales
+    sale_ids = Enum.map(all_sales, & &1.id)
+
     items_query =
       from i in SaleItem,
-        join: s in Sale,
-        on: i.sale_id == s.id,
-        where:
-          s.organization_id == ^organization_id and
-            s.inserted_at >= ^start_datetime and
-            s.inserted_at <= ^end_datetime and
-            s.status == "completed"
+        where: i.sale_id in ^sale_ids
 
     sale_items = Repo.all(items_query)
 
@@ -176,32 +169,34 @@ defmodule AiposWeb.Sale.Sales do
     items_sold = Enum.reduce(sale_items, 0, fn item, acc -> acc + item.quantity end)
     unique_products = sale_items |> Enum.map(& &1.product_sku_id) |> Enum.uniq() |> length()
 
-    # Get payment method statistics
-    payment_methods =
-      Enum.reduce(sales, %{}, fn sale, acc ->
-        method = sale.payment_method
+    # Get payment type statistics (replacing payment method with payment type)
+    payment_types =
+      Enum.reduce(all_sales, %{}, fn sale, acc ->
+        # Get the type (walk-in or shop) - assuming it's derived from customer presence
+        payment_type = if sale.customer_id, do: "shop", else: "walk-in"
         amount = sale.total_amount
 
-        Map.update(acc, method, %{amount: amount, count: 1}, fn stats ->
+        Map.update(acc, payment_type, %{amount: amount, count: 1}, fn stats ->
           %{
             amount: Decimal.add(stats.amount, amount),
             count: stats.count + 1
           }
         end)
       end)
-      |> Enum.map(fn {method, stats} ->
+      |> Enum.map(fn {type, stats} ->
         percentage =
           if Decimal.cmp(total_amount, Decimal.new(0)) == :gt do
             Decimal.to_float(
               Decimal.mult(Decimal.div(stats.amount, total_amount), Decimal.new(100))
             )
-            |> round()
+            |> Float.round(1)
           else
-            0
+            0.0
           end
 
         %{
-          method: method,
+          # Keep the key as "method" to maintain compatibility with existing code
+          method: type,
           amount: stats.amount,
           percentage: percentage,
           count: stats.count
@@ -209,17 +204,16 @@ defmodule AiposWeb.Sale.Sales do
       end)
       |> Enum.sort_by(& &1.amount, {:desc, Decimal})
 
-    # Get top payment method
     top_payment =
-      if length(payment_methods) > 0 do
-        hd(payment_methods)
+      if length(payment_types) > 0 do
+        hd(payment_types)
       else
-        %{method: "none", percentage: 0}
+        %{method: "none", percentage: 0.0}
       end
 
     # Get hourly data
     hourly_data =
-      sales
+      all_sales
       |> Enum.group_by(fn sale ->
         DateTime.to_time(sale.inserted_at).hour
       end)
@@ -234,9 +228,9 @@ defmodule AiposWeb.Sale.Sales do
             Decimal.to_float(
               Decimal.mult(Decimal.div(hour_amount, total_amount), Decimal.new(100))
             )
-            |> round()
+            |> Float.round(1)
           else
-            0
+            0.0
           end
 
         %{
@@ -247,16 +241,10 @@ defmodule AiposWeb.Sale.Sales do
       end)
       |> Enum.sort_by(& &1.hour)
 
-    # Get top products
+    # Get top products - only using the filtered sale_ids
     top_products_query =
       from i in SaleItem,
-        join: s in Sale,
-        on: i.sale_id == s.id,
-        where:
-          s.organization_id == ^organization_id and
-            s.inserted_at >= ^start_datetime and
-            s.inserted_at <= ^end_datetime and
-            s.status == "completed",
+        where: i.sale_id in ^sale_ids,
         group_by: [i.product_sku_id, i.name],
         select: %{
           product_sku_id: i.product_sku_id,
@@ -267,27 +255,30 @@ defmodule AiposWeb.Sale.Sales do
         order_by: [desc: sum(i.subtotal)],
         limit: 5
 
+    top_products_result = Repo.all(top_products_query)
+
+    # Find the maximum amount for percentage calculation
+    max_amount =
+      case top_products_result do
+        [] ->
+          Decimal.new(0)
+
+        products ->
+          product = Enum.max_by(products, fn p -> Decimal.to_float(p.total_amount) end)
+          product.total_amount
+      end
+
     top_products =
-      Repo.all(top_products_query)
+      top_products_result
       |> Enum.map(fn product ->
-        # Calculate percentage based on highest amount for bar chart
-        max_product =
-          Enum.max_by(
-            Repo.all(top_products_query),
-            fn p -> Decimal.to_float(p.total_amount) end,
-            fn -> %{total_amount: Decimal.new(0)} end
-          )
-
-        max_amount = max_product.total_amount
-
         percentage =
           if Decimal.cmp(max_amount, Decimal.new(0)) == :gt do
             Decimal.to_float(
               Decimal.mult(Decimal.div(product.total_amount, max_amount), Decimal.new(100))
             )
-            |> round()
+            |> Float.round(1)
           else
-            0
+            0.0
           end
 
         Map.put(product, :percentage, percentage)
@@ -304,7 +295,8 @@ defmodule AiposWeb.Sale.Sales do
       top_payment_percentage: top_payment.percentage
     })
     |> assign(:hourly_data, hourly_data)
-    |> assign(:payment_methods, payment_methods)
+    # Changed from payment_methods to payment_types
+    |> assign(:payment_methods, payment_types)
     |> assign(:top_products, top_products)
   end
 
@@ -497,7 +489,7 @@ defmodule AiposWeb.Sale.Sales do
               
     <!-- Top Payment Method Card -->
               <div class="bg-amber-50 p-4 rounded-lg">
-                <div class="text-amber-500 text-sm font-medium mb-1">Top Payment Method</div>
+                <div class="text-amber-500 text-sm font-medium mb-1">Sale type</div>
                 <div class="text-2xl font-bold capitalize">{@today_analytics.top_payment_method}</div>
                 <div class="text-sm text-gray-500 mt-1">
                   {@today_analytics.top_payment_percentage}% of sales
@@ -506,27 +498,6 @@ defmodule AiposWeb.Sale.Sales do
             </div>
 
             <div class="p-4 grid grid-cols-1 md:grid-cols-2 gap-6">
-              <!-- Hourly Sales Chart -->
-              <div class="bg-gray-50 p-4 rounded-lg">
-                <h3 class="text-sm font-medium text-gray-700 mb-3">Hourly Sales</h3>
-                <div class="h-64">
-                  <div class="flex h-full items-end">
-                    <%= for hour_data <- @hourly_data do %>
-                      <div class="flex-1 mx-1">
-                        <div
-                          class="bg-blue-500 hover:bg-blue-600 rounded-t"
-                          style={"height: #{hour_data.percentage}%"}
-                          title={"#{hour_data.hour}:00 - #{format_currency(hour_data.amount)}"}
-                        >
-                        </div>
-                        <div class="text-xs text-center mt-1">{hour_data.hour}h</div>
-                      </div>
-                    <% end %>
-                  </div>
-                </div>
-              </div>
-              
-    <!-- Top Products -->
               <div class="bg-gray-50 p-4 rounded-lg">
                 <h3 class="text-sm font-medium text-gray-700 mb-3">Top Selling Products</h3>
                 <div class="space-y-3">
@@ -572,32 +543,6 @@ defmodule AiposWeb.Sale.Sales do
                     <.icon name="magnifying-glass" class="h-5 w-5" />
                   </div>
                 </form>
-              </div>
-
-              <div class="flex items-center space-x-4">
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
-                  <select
-                    phx-change="filter_by_payment"
-                    name="payment_method"
-                    class="border rounded-md shadow-sm py-2 px-3"
-                  >
-                    <option value="all" selected={@filter_payment_method == "all"}>
-                      All Methods
-                    </option>
-                    <option value="cash" selected={@filter_payment_method == "cash"}>Cash</option>
-                    <option value="card" selected={@filter_payment_method == "card"}>Card</option>
-                    <option value="mpesa" selected={@filter_payment_method == "mpesa"}>M-Pesa</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                  <div class="inline-flex items-center justify-center px-3 py-2 border rounded-md shadow-sm bg-gray-50">
-                    <.icon name="calendar" class="h-5 w-5 text-gray-400 mr-2" />
-                    <span>Today</span>
-                  </div>
-                </div>
               </div>
             </div>
           </div>

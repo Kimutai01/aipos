@@ -91,9 +91,21 @@ defmodule AiposWeb.Router do
       live "/start_sale", Live.Sale.Start
       live "/sales", Sale.Sales
       live "/cash_management", CashManagementLive.Index
-      live "/suppliers", SuppliersLive.Index
+      # live "/suppliers", SuppliersLive.Index
+      live "/suppliers", SupplierLive.Index, :index
+      live "/suppliers/new", SupplierLive.Index, :new
+      live "/suppliers/:id/edit", SupplierLive.Index, :edit
+
+      live "/suppliers/:id", SupplierLive.Show, :show
+      live "/suppliers/:id/show/edit", SupplierLive.Show, :edit
       live "/promotions", PromotionsLive.Index
-      live "/customers", CustomersLive.Index
+      # live "/customers", CustomersLive.Index
+      live "/customers", CustomerLive.Index, :index
+      live "/customers/new", CustomerLive.Index, :new
+      live "/customers/:id/edit", CustomerLive.Index, :edit
+
+      live "/customers/:id", CustomerLive.Show, :show
+      live "/customers/:id/show/edit", CustomerLive.Show, :edit
       live "/create_organization", OrganizationLive.Create, :index
       live "/organizations", OrganizationLive.Index, :index
       live "/organizations/new", OrganizationLive.Index, :new
