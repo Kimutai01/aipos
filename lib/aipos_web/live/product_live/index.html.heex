@@ -51,6 +51,7 @@
         module={AiposWeb.ProductLive.FormComponent}
         id={@product.id || :new}
         title={@page_title}
+        cards={@cards}
         action={@live_action}
         product={@product}
         patch={~p"/products"}

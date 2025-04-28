@@ -63,6 +63,13 @@ defmodule AiposWeb.Router do
     post "/users/log_in", UserSessionController, :create
   end
 
+  scope "/api", AiposWeb do
+    pipe_through :api
+
+    post "/iot/card", IotController, :create_card
+    post "/iot/status", IotController, :get_product_status
+  end
+
   scope "/", AiposWeb do
     pipe_through :ussd
 

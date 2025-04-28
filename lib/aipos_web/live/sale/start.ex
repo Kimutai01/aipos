@@ -413,7 +413,7 @@ defmodule AiposWeb.Live.Sale.Start do
 
     new_quantity = if new_quantity < 0, do: 0, else: new_quantity
 
-    ProductSkus.update_product_sku(sku, %{stock_quantity: new_quantity})
+    ProductSkus.update_product_sku(sku, %{stock_quantity: new_quantity, status: "sold"})
   end
 
   defp format_money(amount) when is_number(amount) do

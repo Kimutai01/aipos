@@ -31,8 +31,6 @@ defmodule Aipos.Products do
     |> Repo.all()
   end
 
-  
-
   @doc """
   Gets a single product.
 

@@ -60,6 +60,23 @@ defmodule Aipos.ProductSkus do
     |> ProductSku.changeset(attrs)
     |> Repo.insert()
     |> get_ai_info()
+    |> maybe_delete_cards()
+  end
+
+  defp maybe_delete_cards({:ok, product_sku}) do
+    card = Aipos.Cards.get_by_card(product_sku.rfid_tag)
+
+    if !is_nil(card) do
+      Aipos.Cards.delete_card(card)
+    end
+
+    {:ok, product_sku}
+  end
+
+  def get_product_sku_by_card(card) do
+    from(v in ProductSku, where: [rfid_tag: ^card], limit: 1)
+    |> Repo.all()
+    |> List.first()
   end
 
   defp get_ai_info({:ok, product_sku}) do

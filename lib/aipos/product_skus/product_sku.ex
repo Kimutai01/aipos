@@ -2,6 +2,26 @@ defmodule Aipos.ProductSkus.ProductSku do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @derive {Jason.Encoder,
+           only: [
+             :id,
+             :barcode,
+             :buffer_level,
+             :cost,
+             :description,
+             :image,
+             :name,
+             :price,
+             :rfid_tag,
+             :ai_ingredients,
+             :ai_nutritional_info,
+             :ai_health_benefits,
+             :ai_usage_instructions,
+             :ai_additional_info,
+             :stock_quantity,
+             :status
+           ]}
+
   schema "product_skus" do
     field :barcode, :string
     field :buffer_level, :integer
@@ -17,6 +37,7 @@ defmodule Aipos.ProductSkus.ProductSku do
     field :ai_usage_instructions, :string
     field :ai_additional_info, :string
     field :stock_quantity, :integer
+    field :status, :string, default: "not_sold"
     belongs_to :product, Aipos.Products.Product
     timestamps(type: :utc_datetime)
     field :temp_id, :string, virtual: true
@@ -48,7 +69,8 @@ defmodule Aipos.ProductSkus.ProductSku do
       :ai_nutritional_info,
       :ai_health_benefits,
       :ai_usage_instructions,
-      :ai_additional_info
+      :ai_additional_info,
+      :status
     ])
     |> validate_required([:name])
     |> foreign_key_constraint(:product_id)

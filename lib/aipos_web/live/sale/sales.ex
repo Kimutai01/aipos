@@ -1,25 +1,43 @@
 defmodule AiposWeb.Sale.Sales do
   use Phoenix.LiveView
 
+  alias Aipos.Sales.Sale
+  alias Aipos.Sales.SaleItem
+  alias Aipos.ProductSkus.ProductSku
+  alias Aipos.Repo
   alias AiposWeb.Sidebar
+  import Ecto.Query
 
   @impl true
   def mount(_params, session, socket) do
+    # Extract user ID and organization ID from the session
+    user_id = session["user_id"]
+    organization_id = session["organization_id"]
+
+    # Fetch current user and organization
+    current_user = Aipos.Accounts.get_user!(socket.assigns.current_user.id)
+
+    current_organization =
+      Aipos.Organizations.get_organization!(socket.assigns.current_user.organization_id)
+
+    # Set the selected date to today
+    selected_date = Date.utc_today()
+
     socket =
       socket
       |> assign(:page_title, "Sales History")
       |> assign(:active_page, "sales")
-      |> assign(:current_user, sample_user())
-      |> assign(:current_organization, sample_organization())
-      |> assign(:selected_date, Date.utc_today())
+      |> assign(:current_user, current_user)
+      |> assign(:current_organization, current_organization)
+      |> assign(:selected_date, selected_date)
       |> assign(:search_query, "")
       |> assign(:filter_payment_method, "all")
       |> assign(:sort_field, "created_at")
       |> assign(:sort_direction, "desc")
       |> assign(:page, 1)
       |> assign(:per_page, 10)
-      |> assign_sample_analytics()
-      |> assign_sample_sales()
+      |> assign_analytics(current_organization.id, selected_date)
+      |> assign_sales(current_organization.id, selected_date)
 
     {:ok, socket}
   end
@@ -91,13 +109,17 @@ defmodule AiposWeb.Sale.Sales do
   def handle_event("export_csv", _, socket) do
     filename = "sales_export_#{Date.to_string(socket.assigns.selected_date)}.csv"
 
-    # Simulate CSV content
+    # Create CSV content from real data
     csv_content =
       "receipt_number,date,time,customer,payment_method,total_amount\n" <>
         Enum.map_join(socket.assigns.all_sales, "\n", fn sale ->
-          customer_name = if sale.customer, do: sale.customer.name, else: "Walk-in customer"
+          # Get customer name
+          customer_name =
+            if sale.customer,
+              do: sale.customer.name,
+              else: "Walk-in customer"
 
-          "#{sale.receipt_number},#{Date.to_string(socket.assigns.selected_date)},#{format_time(sale.inserted_at)},#{customer_name},#{sale.payment_method},#{sale.total_amount}"
+          "S#{sale.id},#{Date.to_string(DateTime.to_date(sale.inserted_at))},#{format_time(sale.inserted_at)},#{customer_name},#{sale.payment_method},#{sale.total_amount}"
         end)
 
     {:noreply,
@@ -106,95 +128,245 @@ defmodule AiposWeb.Sale.Sales do
      |> push_event("download-csv", %{filename: filename, content: csv_content})}
   end
 
-  defp assign_sample_analytics(socket) do
-    socket
-    |> assign(:today_analytics, %{
-      total_amount: 157_850.00,
-      total_sales: 43,
-      average_sale: 3671.00,
-      items_sold: 137,
-      unique_products: 28,
-      top_payment_method: "mpesa",
-      top_payment_percentage: 52
-    })
-    |> assign(:hourly_data, [
-      %{hour: 8, amount: 12500.00, percentage: 20},
-      %{hour: 9, amount: 18750.00, percentage: 30},
-      %{hour: 10, amount: 28125.00, percentage: 45},
-      %{hour: 11, amount: 22500.00, percentage: 36},
-      %{hour: 12, amount: 37500.00, percentage: 60},
-      %{hour: 13, amount: 31250.00, percentage: 50},
-      %{hour: 14, amount: 18750.00, percentage: 30},
-      %{hour: 15, amount: 25000.00, percentage: 40},
-      %{hour: 16, amount: 15625.00, percentage: 25},
-      %{hour: 17, amount: 21875.00, percentage: 35}
-    ])
-    |> assign(:payment_methods, [
-      %{method: "mpesa", amount: 82082.00, percentage: 52, count: 22},
-      %{method: "card", amount: 47355.00, percentage: 30, count: 13},
-      %{method: "cash", amount: 28413.00, percentage: 18, count: 8}
-    ])
-    |> assign(:top_products, [
-      %{name: "Premium Coffee", quantity: 42, total_amount: 12600.00, percentage: 100},
-      %{name: "Chicken Sandwich", quantity: 37, total_amount: 11100.00, percentage: 88},
-      %{name: "Fresh Juice", quantity: 31, total_amount: 7750.00, percentage: 62},
-      %{name: "Breakfast Combo", quantity: 28, total_amount: 16800.00, percentage: 70},
-      %{name: "Chocolate Cake", quantity: 25, total_amount: 9375.00, percentage: 60}
-    ])
-  end
+  defp assign_analytics(socket, organization_id, date) do
+    # Calculate date range for the selected date (beginning to end of day)
+    start_datetime = DateTime.new!(date, ~T[00:00:00Z], "Etc/UTC")
+    end_datetime = DateTime.new!(date, ~T[23:59:59Z], "Etc/UTC")
 
-  defp assign_sample_sales(socket) do
-    # Generate 50 random sales
-    all_sales =
-      Enum.map(1..50, fn i ->
-        # Random time in the last 12 hours
-        random_seconds = :rand.uniform(12 * 60 * 60)
-        inserted_at = DateTime.add(DateTime.utc_now(), -random_seconds, :second)
+    # Query sales for the day
+    sales_query =
+      from s in Sale,
+        where:
+          s.organization_id == ^organization_id and
+            s.inserted_at >= ^start_datetime and
+            s.inserted_at <= ^end_datetime and
+            s.status == "completed",
+        preload: [:cashier]
 
-        # Random payment method
-        payment_method = Enum.random(["cash", "card", "mpesa"])
+    sales = Repo.all(sales_query)
 
-        # Random number of items between 1 and 8
-        items_count = :rand.uniform(8)
+    # Calculate totals
+    total_amount =
+      Enum.reduce(sales, Decimal.new(0), fn sale, acc -> Decimal.add(acc, sale.total_amount) end)
 
-        # Random price between 100 and 5000
-        total_amount = (:rand.uniform(49) + 1) * 100
+    total_sales = length(sales)
 
-        # Customer (20% chance of being a walk-in customer)
-        customer =
-          if :rand.uniform(100) <= 80,
-            do: %{
-              name:
-                Enum.random([
-                  "John Doe",
-                  "Jane Smith",
-                  "David Mwangi",
-                  "Mary Wanjiku",
-                  "Peter Kamau"
-                ]),
-              phone: "07#{:rand.uniform(99_999_999)}"
-            },
-            else: nil
+    # Calculate average sale
+    average_sale =
+      if total_sales > 0 do
+        Decimal.div(total_amount, Decimal.new(total_sales))
+      else
+        Decimal.new(0)
+      end
+
+    # Get all sale items for the day
+    items_query =
+      from i in SaleItem,
+        join: s in Sale,
+        on: i.sale_id == s.id,
+        where:
+          s.organization_id == ^organization_id and
+            s.inserted_at >= ^start_datetime and
+            s.inserted_at <= ^end_datetime and
+            s.status == "completed"
+
+    sale_items = Repo.all(items_query)
+
+    # Calculate items sold and unique products
+    items_sold = Enum.reduce(sale_items, 0, fn item, acc -> acc + item.quantity end)
+    unique_products = sale_items |> Enum.map(& &1.product_sku_id) |> Enum.uniq() |> length()
+
+    # Get payment method statistics
+    payment_methods =
+      Enum.reduce(sales, %{}, fn sale, acc ->
+        method = sale.payment_method
+        amount = sale.total_amount
+
+        Map.update(acc, method, %{amount: amount, count: 1}, fn stats ->
+          %{
+            amount: Decimal.add(stats.amount, amount),
+            count: stats.count + 1
+          }
+        end)
+      end)
+      |> Enum.map(fn {method, stats} ->
+        percentage =
+          if Decimal.cmp(total_amount, Decimal.new(0)) == :gt do
+            Decimal.to_float(
+              Decimal.mult(Decimal.div(stats.amount, total_amount), Decimal.new(100))
+            )
+            |> round()
+          else
+            0
+          end
 
         %{
-          id: i,
-          receipt_number: "S#{10000 + i}",
-          inserted_at: inserted_at,
+          method: method,
+          amount: stats.amount,
+          percentage: percentage,
+          count: stats.count
+        }
+      end)
+      |> Enum.sort_by(& &1.amount, {:desc, Decimal})
+
+    # Get top payment method
+    top_payment =
+      if length(payment_methods) > 0 do
+        hd(payment_methods)
+      else
+        %{method: "none", percentage: 0}
+      end
+
+    # Get hourly data
+    hourly_data =
+      sales
+      |> Enum.group_by(fn sale ->
+        DateTime.to_time(sale.inserted_at).hour
+      end)
+      |> Enum.map(fn {hour, hour_sales} ->
+        hour_amount =
+          Enum.reduce(hour_sales, Decimal.new(0), fn sale, acc ->
+            Decimal.add(acc, sale.total_amount)
+          end)
+
+        percentage =
+          if Decimal.cmp(total_amount, Decimal.new(0)) == :gt do
+            Decimal.to_float(
+              Decimal.mult(Decimal.div(hour_amount, total_amount), Decimal.new(100))
+            )
+            |> round()
+          else
+            0
+          end
+
+        %{
+          hour: hour,
+          amount: hour_amount,
+          percentage: percentage
+        }
+      end)
+      |> Enum.sort_by(& &1.hour)
+
+    # Get top products
+    top_products_query =
+      from i in SaleItem,
+        join: s in Sale,
+        on: i.sale_id == s.id,
+        where:
+          s.organization_id == ^organization_id and
+            s.inserted_at >= ^start_datetime and
+            s.inserted_at <= ^end_datetime and
+            s.status == "completed",
+        group_by: [i.product_sku_id, i.name],
+        select: %{
+          product_sku_id: i.product_sku_id,
+          name: i.name,
+          quantity: sum(i.quantity),
+          total_amount: sum(i.subtotal)
+        },
+        order_by: [desc: sum(i.subtotal)],
+        limit: 5
+
+    top_products =
+      Repo.all(top_products_query)
+      |> Enum.map(fn product ->
+        # Calculate percentage based on highest amount for bar chart
+        max_product =
+          Enum.max_by(
+            Repo.all(top_products_query),
+            fn p -> Decimal.to_float(p.total_amount) end,
+            fn -> %{total_amount: Decimal.new(0)} end
+          )
+
+        max_amount = max_product.total_amount
+
+        percentage =
+          if Decimal.cmp(max_amount, Decimal.new(0)) == :gt do
+            Decimal.to_float(
+              Decimal.mult(Decimal.div(product.total_amount, max_amount), Decimal.new(100))
+            )
+            |> round()
+          else
+            0
+          end
+
+        Map.put(product, :percentage, percentage)
+      end)
+
+    socket
+    |> assign(:today_analytics, %{
+      total_amount: total_amount,
+      total_sales: total_sales,
+      average_sale: average_sale,
+      items_sold: items_sold,
+      unique_products: unique_products,
+      top_payment_method: top_payment.method,
+      top_payment_percentage: top_payment.percentage
+    })
+    |> assign(:hourly_data, hourly_data)
+    |> assign(:payment_methods, payment_methods)
+    |> assign(:top_products, top_products)
+  end
+
+  defp assign_sales(socket, organization_id, date) do
+    # Calculate date range for the selected date
+    start_datetime = DateTime.new!(date, ~T[00:00:00Z], "Etc/UTC")
+    end_datetime = DateTime.new!(date, ~T[23:59:59Z], "Etc/UTC")
+
+    # Query sales with preloads
+    sales_query =
+      from s in Sale,
+        where:
+          s.organization_id == ^organization_id and
+            s.inserted_at >= ^start_datetime and
+            s.inserted_at <= ^end_datetime,
+        order_by: [desc: s.inserted_at],
+        preload: [:cashier]
+
+    all_sales = Repo.all(sales_query)
+
+    # Build sales with additional data for display
+    sales_with_details =
+      Enum.map(all_sales, fn sale ->
+        # Get items count for each sale
+        items_query = from i in SaleItem, where: i.sale_id == ^sale.id
+        items_count = Repo.aggregate(items_query, :count)
+        items = Repo.all(items_query)
+
+        # Get customer if available
+        customer =
+          if sale.customer_id do
+            try do
+              Aipos.Customers.get_customer!(sale.customer_id)
+            rescue
+              _ -> nil
+            end
+          else
+            nil
+          end
+
+        # Build the sale struct with all needed data
+        %{
+          id: sale.id,
+          receipt_number: "S#{sale.id}",
+          inserted_at: sale.inserted_at,
           customer: customer,
-          items: Enum.map(1..items_count, fn _ -> %{} end),
-          payment_method: payment_method,
-          total_amount: total_amount
+          items: items,
+          payment_method: sale.payment_method,
+          total_amount: sale.total_amount,
+          status: sale.status,
+          cashier: sale.cashier
         }
       end)
 
-    # Sort by most recent first
-    sorted_sales = Enum.sort_by(all_sales, & &1.inserted_at, {:desc, DateTime})
+    # Initial pagination
+    paginated_sales = Enum.take(sales_with_details, socket.assigns.per_page)
 
     socket
-    |> assign(:all_sales, all_sales)
-    |> assign(:sales, Enum.take(sorted_sales, socket.assigns.per_page))
-    |> assign(:total_count, length(all_sales))
-    |> assign(:total_pages, ceil(length(all_sales) / socket.assigns.per_page))
+    |> assign(:all_sales, sales_with_details)
+    |> assign(:sales, paginated_sales)
+    |> assign(:total_count, length(sales_with_details))
+    |> assign(:total_pages, ceil(length(sales_with_details) / socket.assigns.per_page))
   end
 
   defp filter_sales_by_query(sales, query) do
@@ -204,12 +376,13 @@ defmodule AiposWeb.Sale.Sales do
       query = String.downcase(query)
 
       Enum.filter(sales, fn sale ->
-        receipt_match = String.contains?(String.downcase(sale.receipt_number), query)
+        receipt_match = String.contains?(String.downcase("S#{sale.id}"), query)
 
         customer_match =
           if sale.customer do
             String.contains?(String.downcase(sale.customer.name), query) ||
-              String.contains?(String.downcase(sale.customer.phone), query)
+              (sale.customer.phone &&
+                 String.contains?(String.downcase(sale.customer.phone), query))
           else
             false
           end
@@ -230,7 +403,7 @@ defmodule AiposWeb.Sale.Sales do
   defp sort_sales(sales, field, direction) do
     case field do
       "receipt_number" ->
-        Enum.sort_by(sales, & &1.receipt_number, sort_direction_to_atom(direction))
+        Enum.sort_by(sales, & &1.id, sort_direction_to_atom(direction))
 
       "created_at" ->
         Enum.sort_by(sales, & &1.inserted_at, sort_direction_to_atom(direction))
@@ -248,7 +421,11 @@ defmodule AiposWeb.Sale.Sales do
         Enum.sort_by(sales, & &1.payment_method, sort_direction_to_atom(direction))
 
       "total_amount" ->
-        Enum.sort_by(sales, & &1.total_amount, sort_direction_to_atom(direction))
+        Enum.sort_by(
+          sales,
+          fn sale -> Decimal.to_float(sale.total_amount) end,
+          sort_direction_to_atom(direction)
+        )
 
       _ ->
         sales
@@ -258,24 +435,7 @@ defmodule AiposWeb.Sale.Sales do
   defp sort_direction_to_atom("asc"), do: :asc
   defp sort_direction_to_atom("desc"), do: :desc
 
-  defp sample_user do
-    %{
-      id: 1,
-      email: "admin@example.com",
-      name: "Sample Admin",
-      role: "admin",
-      organization_id: 1
-    }
-  end
-
-  defp sample_organization do
-    %{
-      id: 1,
-      name: "Sample Organization",
-      logo: "/images/logo.png"
-    }
-  end
-
+  # The render function remains exactly the same as in your original code
   @impl true
   def render(assigns) do
     ~H"""
@@ -652,7 +812,7 @@ defmodule AiposWeb.Sale.Sales do
   end
 
   defp format_currency(amount) do
-    "KSh #{:erlang.float_to_binary(amount / 1, decimals: 2)}"
+    "KSh #{:erlang.float_to_binary(Decimal.to_float(amount), decimals: 2)}"
   end
 
   defp format_time(datetime) do

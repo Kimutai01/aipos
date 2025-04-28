@@ -10,6 +10,7 @@ defmodule AiposWeb.ProductLive.Index do
       socket
       |> assign(:active_page, "products")
       |> assign(:current_user, socket.assigns.current_user)
+
       |> assign(:current_organization, get_organization(socket.assigns.current_user))
       |> assign(:products, Products.list_products())
 

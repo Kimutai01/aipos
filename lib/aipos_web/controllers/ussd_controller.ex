@@ -65,6 +65,7 @@ defmodule AiposWeb.UssdMarketplaceController do
       {:error, error} ->
         # Log error but still provide a new session
         IO.puts("Error retrieving from cache: #{inspect(error)}")
+
         %{
           phone_number: phone_number,
           selected_organization: nil,
@@ -131,7 +132,8 @@ defmodule AiposWeb.UssdMarketplaceController do
             updated_cart = add_to_cart(session_data.cart_items, product_sku)
             total = calculate_total(updated_cart)
 
-            updated_session = session_data
+            updated_session =
+              session_data
               |> Map.put(:cart_items, updated_cart)
               |> Map.put(:total_amount, total)
 
@@ -152,15 +154,16 @@ defmodule AiposWeb.UssdMarketplaceController do
 
         if last_item do
           updated_item = %{
-            last_item |
-            quantity: quantity,
-            subtotal: Decimal.mult(last_item.price, Decimal.new(quantity))
+            last_item
+            | quantity: quantity,
+              subtotal: Decimal.mult(last_item.price, Decimal.new(quantity))
           }
 
           updated_cart = other_items ++ [updated_item]
           total = calculate_total(updated_cart)
 
-          updated_session = session_data
+          updated_session =
+            session_data
             |> Map.put(:cart_items, updated_cart)
             |> Map.put(:total_amount, total)
 
@@ -180,7 +183,8 @@ defmodule AiposWeb.UssdMarketplaceController do
       # Continue shopping option selected after quantity was selected (direct cart option 2)
       Regex.match?(~r/^1\*\d+\*\d+\*\d+\*2$/, text) ->
         if is_nil(session_data.selected_organization) do
-          {"CON Please select a store first:\n" <> org_selection_menu(list_organizations()), session_data}
+          {"CON Please select a store first:\n" <> org_selection_menu(list_organizations()),
+           session_data}
         else
           organization = session_data.selected_organization
           products = list_organization_products(organization.id)
@@ -189,7 +193,8 @@ defmodule AiposWeb.UssdMarketplaceController do
 
       # Clear cart option selected after quantity was selected (direct cart option 3)
       Regex.match?(~r/^1\*\d+\*\d+\*\d+\*3$/, text) ->
-        updated_session = session_data
+        updated_session =
+          session_data
           |> Map.put(:cart_items, [])
           |> Map.put(:total_amount, Decimal.new(0))
 
@@ -214,7 +219,8 @@ defmodule AiposWeb.UssdMarketplaceController do
       # Continue shopping from dedicated cart menu
       text == "1*0*2" ->
         if is_nil(session_data.selected_organization) do
-          {"CON Please select a store first:\n" <> org_selection_menu(list_organizations()), session_data}
+          {"CON Please select a store first:\n" <> org_selection_menu(list_organizations()),
+           session_data}
         else
           organization = session_data.selected_organization
           products = list_organization_products(organization.id)
@@ -223,7 +229,8 @@ defmodule AiposWeb.UssdMarketplaceController do
 
       # Clear cart from dedicated cart menu
       text == "1*0*3" ->
-        updated_session = session_data
+        updated_session =
+          session_data
           |> Map.put(:cart_items, [])
           |> Map.put(:total_amount, Decimal.new(0))
 
@@ -259,14 +266,13 @@ defmodule AiposWeb.UssdMarketplaceController do
 
       # Cancel at confirmation screen
       text == "1*0*1*1*1*2" || text == "1*0*1*1*2*2" ||
-      Regex.match?(~r/^1\*\d+\*\d+\*\d+\*1\*1\*1\*2$/, text) ||
-      Regex.match?(~r/^1\*\d+\*\d+\*\d+\*1\*1\*2\*2$/, text) ->
+        Regex.match?(~r/^1\*\d+\*\d+\*\d+\*1\*1\*1\*2$/, text) ||
+          Regex.match?(~r/^1\*\d+\*\d+\*\d+\*1\*1\*2\*2$/, text) ->
         {cart_menu(session_data.cart_items, session_data.total_amount), session_data}
 
       # Order confirmation - Pay Now from dedicated cart path
       text == "1*0*1*1*1*1" ->
         process_order(session_data, "pay_now")
-
 
       text == "1*0*1*1*2*1" ->
         process_order(session_data, "pay_on_delivery")
@@ -293,9 +299,11 @@ defmodule AiposWeb.UssdMarketplaceController do
   # List all products for an organization
   defp list_organization_products(organization_id) do
     # Get products for the organization
-    products = Products.list_products()
+    products =
+      Products.list_products()
       |> Enum.filter(fn p -> p.organization_id == organization_id end)
-      |> Enum.take(8)  # Limit to 8 for USSD display
+      # Limit to 8 for USSD display
+      |> Enum.take(8)
 
     # Get available SKUs for each product
     products
@@ -303,7 +311,8 @@ defmodule AiposWeb.UssdMarketplaceController do
       skus =
         Products.list_product_skus(product.id)
         |> Enum.filter(fn sku -> sku.stock_quantity > 0 end)
-        |> Enum.take(1)  # Just take the first SKU for simplicity
+        # Just take the first SKU for simplicity
+        |> Enum.take(1)
         |> Enum.map(&Repo.preload(&1, :product))
 
       if Enum.empty?(skus) do
@@ -312,13 +321,15 @@ defmodule AiposWeb.UssdMarketplaceController do
         %{product: product, sku: List.first(skus)}
       end
     end)
-    |> Enum.filter(&(&1 != nil))  # Remove nil entries (products with no SKUs)
+    # Remove nil entries (products with no SKUs)
+    |> Enum.filter(&(&1 != nil))
   end
 
   # Add item to cart
   defp add_to_cart(cart_items, product_sku) do
     product_name =
-      if is_map(product_sku.product) && !match?(%Ecto.Association.NotLoaded{}, product_sku.product) do
+      if is_map(product_sku.product) &&
+           !match?(%Ecto.Association.NotLoaded{}, product_sku.product) do
         product_sku.product.name
       else
         product_sku.name
@@ -391,10 +402,12 @@ defmodule AiposWeb.UssdMarketplaceController do
           # Determine response based on payment method
           if payment_method == "pay_now" do
             send_payment_instructions(session_data.phone_number, sale.id, total_price)
+
             {"END Thank you for your order! Check your SMS for payment instructions.",
              %{session_data | cart_items: [], total_amount: Decimal.new(0)}}
           else
             send_order_confirmation(session_data.phone_number, sale.id, total_price)
+
             {"END Thank you for your order! Your items will be delivered soon.",
              %{session_data | cart_items: [], total_amount: Decimal.new(0)}}
           end
@@ -413,33 +426,39 @@ defmodule AiposWeb.UssdMarketplaceController do
 
     new_quantity = if new_quantity < 0, do: 0, else: new_quantity
 
-    ProductSkus.update_product_sku(sku, %{stock_quantity: new_quantity})
+    ProductSkus.update_product_sku(sku, %{stock_quantity: new_quantity, status: "sold"})
   end
 
   # Send payment instructions via SMS
   defp send_payment_instructions(phone_number, order_id, amount) do
-    message = "Thank you for your order ##{order_id}. Please pay #{format_money(amount)} " <>
-              "via M-PESA to Till Number 123456. Use your phone number as reference."
+    message =
+      "Thank you for your order ##{order_id}. Please pay #{format_money(amount)} " <>
+        "via M-PESA to Till Number 123456. Use your phone number as reference."
 
     Task.start(fn ->
       case AfricasTalking.send_sms(phone_number, message) do
         {:ok, _response} ->
           IO.puts("Payment instructions SMS sent successfully to #{phone_number}")
+
         {:error, reason} ->
-          IO.puts("Failed to send payment instructions SMS to #{phone_number}: #{inspect(reason)}")
+          IO.puts(
+            "Failed to send payment instructions SMS to #{phone_number}: #{inspect(reason)}"
+          )
       end
     end)
   end
 
   # Send order confirmation via SMS
   defp send_order_confirmation(phone_number, order_id, amount) do
-    message = "Thank you for your order ##{order_id}. Your total is #{format_money(amount)}. " <>
-              "Your items will be delivered within 24-48 hours. Pay on delivery."
+    message =
+      "Thank you for your order ##{order_id}. Your total is #{format_money(amount)}. " <>
+        "Your items will be delivered within 24-48 hours. Pay on delivery."
 
     Task.start(fn ->
       case AfricasTalking.send_sms(phone_number, message) do
         {:ok, _response} ->
           IO.puts("Order confirmation SMS sent successfully to #{phone_number}")
+
         {:error, reason} ->
           IO.puts("Failed to send order confirmation SMS to #{phone_number}: #{inspect(reason)}")
       end
@@ -451,16 +470,18 @@ defmodule AiposWeb.UssdMarketplaceController do
   # Main menu
   defp main_menu do
     "CON Welcome to AIPOs Marketplace.\n" <>
-    "1. Shop Now"
+      "1. Shop Now"
   end
 
   # Organization selection menu
   defp org_selection_menu(organizations) do
     header = "CON Select a store:\n"
 
-    orgs_menu = organizations
+    orgs_menu =
+      organizations
       |> Enum.with_index(1)
-      |> Enum.take(7)  # Limit to 7 items for USSD display
+      # Limit to 7 items for USSD display
+      |> Enum.take(7)
       |> Enum.map(fn {org, index} -> "#{index}. #{org.name}" end)
       |> Enum.join("\n")
 
@@ -474,7 +495,8 @@ defmodule AiposWeb.UssdMarketplaceController do
     else
       header = "CON #{store_name} - Select a product:\n"
 
-      products_menu = products
+      products_menu =
+        products
         |> Enum.with_index(1)
         |> Enum.map(fn {%{product: product, sku: sku}, index} ->
           "#{index}. #{product.name} - #{format_money(sku.price)}"
@@ -488,39 +510,46 @@ defmodule AiposWeb.UssdMarketplaceController do
   # Quantity selection menu
   defp quantity_menu(product_sku) do
     "CON #{product_sku.name}\nPrice: #{format_money(product_sku.price)}\n" <>
-    "Select quantity:\n" <>
-    "1. 1\n" <>
-    "2. 2\n" <>
-    "3. 3\n" <>
-    "4. 4\n" <>
-    "5. 5"
+      "Select quantity:\n" <>
+      "1. 1\n" <>
+      "2. 2\n" <>
+      "3. 3\n" <>
+      "4. 4\n" <>
+      "5. 5"
   end
 
   # Cart view menu
   defp cart_menu(cart_items, total) do
     if Enum.empty?(cart_items) do
       "CON Your cart is empty.\n\n" <>
-      "2. Continue Shopping"
+        "2. Continue Shopping"
     else
       header = "CON Your Cart:\n"
 
-      items = cart_items
-        |> Enum.take(3)  # Limit for USSD display
+      items =
+        cart_items
+        # Limit for USSD display
+        |> Enum.take(3)
         |> Enum.with_index(1)
         |> Enum.map(fn {item, index} ->
           "#{index}. #{item.name} x#{item.quantity} = #{format_money(item.subtotal)}"
         end)
         |> Enum.join("\n")
 
-      more_text = if Enum.count(cart_items) > 3, do: "\n(+ #{Enum.count(cart_items) - 3} more items)", else: ""
+      more_text =
+        if Enum.count(cart_items) > 3,
+          do: "\n(+ #{Enum.count(cart_items) - 3} more items)",
+          else: ""
 
-      summary = "\nSubtotal: #{format_money(total)}" <>
-                "\nShipping: #{format_money(@shipping_cost)}" <>
-                "\nTotal: #{format_money(Decimal.add(total, @shipping_cost))}"
+      summary =
+        "\nSubtotal: #{format_money(total)}" <>
+          "\nShipping: #{format_money(@shipping_cost)}" <>
+          "\nTotal: #{format_money(Decimal.add(total, @shipping_cost))}"
 
-      options = "\n\n1. Checkout" <>
-                "\n2. Continue Shopping" <>
-                "\n3. Clear Cart"
+      options =
+        "\n\n1. Checkout" <>
+          "\n2. Continue Shopping" <>
+          "\n3. Clear Cart"
 
       header <> items <> more_text <> summary <> options
     end
@@ -529,17 +558,16 @@ defmodule AiposWeb.UssdMarketplaceController do
   # Checkout menu
   defp checkout_menu do
     "CON Customer Information:\n" <>
-    "Your order will be delivered to your registered address.\n\n" <>
-    "1. Continue to Payment"
+      "Your order will be delivered to your registered address.\n\n" <>
+      "1. Continue to Payment"
   end
 
   # Payment method menu
   defp payment_method_menu do
     "CON Select payment method:\n" <>
-    "1. Pay Now (M-PESA)\n" <>
-    "2. Pay on Delivery"
+      "1. Pay Now (M-PESA)\n" <>
+      "2. Pay on Delivery"
   end
-
 
   defp confirm_order_menu(session_data) do
     total = Decimal.add(session_data.total_amount, @shipping_cost)
@@ -552,11 +580,11 @@ defmodule AiposWeb.UssdMarketplaceController do
       end
 
     "CON Order Summary:\n" <>
-    "Items: #{Enum.count(session_data.cart_items)}\n" <>
-    "Total: #{format_money(total)}\n" <>
-    "Payment: #{payment_method_text}\n\n" <>
-    "1. Confirm Order\n" <>
-    "2. Cancel"
+      "Items: #{Enum.count(session_data.cart_items)}\n" <>
+      "Total: #{format_money(total)}\n" <>
+      "Payment: #{payment_method_text}\n\n" <>
+      "1. Confirm Order\n" <>
+      "2. Cancel"
   end
 
   # Helper for formatting money values
@@ -565,7 +593,7 @@ defmodule AiposWeb.UssdMarketplaceController do
   end
 
   defp format_money(amount) when is_number(amount) do
-    :erlang.float_to_binary(amount / 1, [decimals: 2])
+    :erlang.float_to_binary(amount / 1, decimals: 2)
   end
 
   defp format_money(_), do: "0.00"

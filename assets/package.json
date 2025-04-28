@@ -1,5 +1,6 @@
 {
   "dependencies": {
-    "@ericblade/quagga2": "^1.8.4"
+    "@ericblade/quagga2": "^1.8.4",
+    "chart.js": "^4.4.9"
   }
 }

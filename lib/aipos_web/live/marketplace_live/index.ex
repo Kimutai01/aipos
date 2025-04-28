@@ -427,7 +427,7 @@ defmodule AiposWeb.MarketplaceLive.Index do
 
     new_quantity = if new_quantity < 0, do: 0, else: new_quantity
 
-    Aipos.ProductSkus.update_product_sku(sku, %{stock_quantity: new_quantity})
+    Aipos.ProductSkus.update_product_sku(sku, %{stock_quantity: new_quantity, status: "sold"})
   end
 
   defp add_to_cart(cart_items, product_sku) do

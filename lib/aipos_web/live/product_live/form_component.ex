@@ -18,6 +18,7 @@ defmodule AiposWeb.ProductLive.FormComponent do
        max_file_size: 5_000_000,
        progress: &handle_progress/3
      )
+     |> assign(:cards, Aipos.Cards.list_cards())
      |> allow_upload(:sku_image,
        accept: ~w(.jpg .jpeg .png),
        max_entries: 1,
@@ -623,16 +624,22 @@ defmodule AiposWeb.ProductLive.FormComponent do
                   </div>
 
                   <div>
-                    <label class="block text-sm font-medium text-gray-700">RFID Tag</label>
-                    <input
+                    <label class="block text-sm font-medium text-gray-700">RFID Card</label>
+                    <select
                       name="product_sku[rfid_tag]"
-                      value={@current_sku.rfid_tag}
-                      type="text"
                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                      placeholder="Enter RFID tag (optional)"
-                    />
+                    >
+                      <option value="">Select a Card (optional)</option>
+                      <%= for card <- @cards do %>
+                        <option value={card.card} selected={@current_sku.rfid_tag == card.card}>
+                          {card.card}
+                        </option>
+                      <% end %>
+                    </select>
+                    <p class="mt-1 text-xs text-gray-500">
+                      Link this product to an RFID card for inventory tracking
+                    </p>
                   </div>
-
                   <div class="grid grid-cols-2 gap-4">
                     <div>
                       <label class="block text-sm font-medium text-gray-700">
@@ -696,8 +703,7 @@ defmodule AiposWeb.ProductLive.FormComponent do
                       rows="2"
                     ><%= @current_sku.description %></textarea>
                   </div>
-                  
-    <!-- Add SKU Image Upload -->
+
                   <div>
                     <label class="block text-sm font-medium text-gray-700">
                       Variant Image (Optional)
