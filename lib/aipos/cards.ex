@@ -42,6 +42,8 @@ defmodule Aipos.Cards do
     |> Repo.one()
   end
 
+  def get_by_card(nil), do: nil
+
   @doc """
   Creates a card.
 

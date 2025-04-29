@@ -110,8 +110,6 @@ defmodule AiposWeb.ProductLive.FormComponent do
     product_params =
       Map.put(product_params, "organization_id", socket.assigns.current_user.organization_id)
 
-    IO.inspect(product_params, label: "Product Params")
-
     save_product(socket, socket.assigns.action, product_params)
   end
 
@@ -284,10 +282,10 @@ defmodule AiposWeb.ProductLive.FormComponent do
             organization_id: ensure_integer(sku.organization_id)
           }
 
-          IO.inspect(sku_params, label: "Updating SKU Params")
-
           ProductSkus.get_product_sku!(product_id, sku.id)
-          |> ProductSkus.update_product_sku(sku_params)
+          |> IO.inspect(label: "Updating SKU")
+
+        # |> ProductSkus.update_product_sku(sku_params)
 
         true ->
           sku_params = %{

@@ -41,7 +41,8 @@ defmodule Aipos.ProductSkus do
     Repo.get!(ProductSku, id)
   end
 
-  def get_product_sku!(product, id), do: Repo.get_by!(ProductSku, product_id: product.id, id: id)
+  def get_product_sku!(product_id, id),
+    do: Repo.get_by!(ProductSku, product_id: product_id, id: id)
 
   @doc """
   Creates a product_sku.
