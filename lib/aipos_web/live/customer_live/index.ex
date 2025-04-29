@@ -17,7 +17,10 @@ defmodule AiposWeb.CustomerLive.Index do
       |> assign(:active_page, "customers")
       |> assign(:search_query, "")
       |> assign(:filter, "all")
-      |> stream(:customers, Customers.list_customers())
+      |> stream(
+        :customers,
+        Customers.list_customers_by_organization_id(socket.assigns.current_user.organization_id)
+      )
 
     {:ok, socket}
   end

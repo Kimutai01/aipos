@@ -24,11 +24,17 @@
 
 <.back navigate={~p"/suppliers"}>Back to suppliers</.back>
 
-<.modal :if={@live_action == :edit} id="supplier-modal" show on_cancel={JS.patch(~p"/suppliers/#{@supplier}")}>
+<.modal
+  :if={@live_action == :edit}
+  id="supplier-modal"
+  show
+  on_cancel={JS.patch(~p"/suppliers/#{@supplier}")}
+>
   <.live_component
     module={AiposWeb.SupplierLive.FormComponent}
     id={@supplier.id}
     title={@page_title}
+    current_user={@current_user}
     action={@live_action}
     supplier={@supplier}
     patch={~p"/suppliers/#{@supplier}"}

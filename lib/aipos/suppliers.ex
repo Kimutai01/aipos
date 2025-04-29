@@ -29,6 +29,14 @@ defmodule Aipos.Suppliers do
     Repo.all(query)
   end
 
+  def search_supplier(query, organization_id) do
+    query =
+      from s in Supplier,
+        where: s.organization_id == ^organization_id and ilike(s.name, ^"%#{query}%")
+
+    Repo.all(query)
+  end
+
   @doc """
   Gets a single supplier.
 

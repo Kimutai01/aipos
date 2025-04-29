@@ -73,36 +73,6 @@ defmodule AiposWeb.SupplierLive.FormComponent do
             />
           </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <.input
-                field={@form[:tags]}
-                type="select"
-                multiple
-                label="Tags"
-                options={[
-                  {"Food", "Food"},
-                  {"Beverages", "Beverages"},
-                  {"Equipment", "Equipment"},
-                  {"Packaging", "Packaging"},
-                  {"Ingredients", "Ingredients"}
-                ]}
-                class="block w-full border rounded-md shadow-sm py-2 px-3"
-              />
-              <p class="mt-1 text-xs text-gray-500">Hold Ctrl/Cmd to select multiple</p>
-            </div>
-            <div>
-              <.input
-                field={@form[:lead_time]}
-                type="number"
-                label="Lead Time (days)"
-                min="1"
-                placeholder="3"
-                class="block w-full border rounded-md shadow-sm py-2 px-3"
-              />
-            </div>
-          </div>
-
           <div>
             <.input
               field={@form[:payment_terms]}
@@ -110,13 +80,7 @@ defmodule AiposWeb.SupplierLive.FormComponent do
               label="Payment Terms"
               prompt="Select payment terms"
               options={[
-                {"Net 30", "Net 30"},
-                {"Net 15", "Net 15"},
-                {"Net 45", "Net 45"},
                 {"Cash on Delivery", "Cash on Delivery"},
-                {"15 days EOM", "15 days EOM"},
-                {"30 days EOM", "30 days EOM"},
-                {"2/10 Net 30", "2/10 Net 30"},
                 {"Advance Payment", "Advance Payment"}
               ]}
               class="block w-full border rounded-md shadow-sm py-2 px-3"

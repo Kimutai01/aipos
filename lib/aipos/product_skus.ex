@@ -65,10 +65,12 @@ defmodule Aipos.ProductSkus do
   end
 
   defp maybe_delete_cards({:ok, product_sku}) do
-    card = Aipos.Cards.get_by_card(product_sku.rfid_tag)
+    if product_sku.rfid_tag do
+      card = Aipos.Cards.get_by_card(product_sku.rfid_tag)
 
-    if !is_nil(card) do
-      Aipos.Cards.delete_card(card)
+      if !is_nil(card) do
+        Aipos.Cards.delete_card(card)
+      end
     end
 
     {:ok, product_sku}

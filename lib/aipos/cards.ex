@@ -35,14 +35,17 @@ defmodule Aipos.Cards do
       ** (Ecto.NoResultsError)
 
   """
-  def get_card!(id), do: Repo.get!(Card, id)
 
   def get_by_card(card) do
-    from(c in Card, where: c.card == ^card)
-    |> Repo.one()
-  end
+    cond do
+      is_nil(card) ->
+        nil
 
-  def get_by_card(nil), do: nil
+      true ->
+        from(c in Card, where: c.card == ^card)
+        |> Repo.one()
+    end
+  end
 
   @doc """
   Creates a card.

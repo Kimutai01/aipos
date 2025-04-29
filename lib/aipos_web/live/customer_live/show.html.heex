@@ -307,6 +307,7 @@
     id={@customer.id}
     title="Edit Customer"
     action={@live_action}
+    current_user={@current_user}
     customer={@customer}
     patch={~p"/customers/#{@customer}"}
   />

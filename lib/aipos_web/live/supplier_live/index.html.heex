@@ -172,6 +172,7 @@
     id={@supplier.id || :new}
     title={@page_title}
     action={@live_action}
+    current_user={@current_user}
     supplier={@supplier}
     patch={~p"/suppliers"}
   />

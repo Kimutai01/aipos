@@ -105,7 +105,7 @@ defmodule AiposWeb.Sidebar do
               </a>
             </li>
 
-            <li>
+            <%!-- <li>
               <a
                 href="/cash_management"
                 class={
@@ -118,7 +118,7 @@ defmodule AiposWeb.Sidebar do
                 <Heroicons.icon name="banknotes" type="solid" class="h-5 w-5 mr-3 text-green-400" />
                 <span>Cash Management</span>
               </a>
-            </li>
+            </li> --%>
 
             <li>
               <a
@@ -154,7 +154,7 @@ defmodule AiposWeb.Sidebar do
               </a>
             </li>
 
-            <li>
+            <%!-- <li>
               <a
                 href="/inventory"
                 class={
@@ -171,14 +171,14 @@ defmodule AiposWeb.Sidebar do
                 />
                 <span>Inventory</span>
               </a>
-            </li>
+            </li> --%>
           </ul>
 
           <p class="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider mt-6 mb-2">
             Management
           </p>
           <ul class="space-y-1">
-            <li>
+            <%!-- <li>
               <a
                 href="/manage_users"
                 class={
@@ -191,9 +191,9 @@ defmodule AiposWeb.Sidebar do
                 <Heroicons.icon name="users" type="solid" class="h-5 w-5 mr-3 text-indigo-400" />
                 <span>Staff</span>
               </a>
-            </li>
+            </li> --%>
 
-            <li>
+            <%!-- <li>
               <a
                 href="/reports"
                 class={
@@ -206,9 +206,7 @@ defmodule AiposWeb.Sidebar do
                 <Heroicons.icon name="chart-bar" type="solid" class="h-5 w-5 mr-3 text-red-400" />
                 <span>Reports</span>
               </a>
-            </li>
-
-            <%!-- registers --%>
+            </li> --%>
 
             <li>
               <a
@@ -229,7 +227,7 @@ defmodule AiposWeb.Sidebar do
               </a>
             </li>
 
-            <li>
+            <%!-- <li>
               <a
                 href="/settings"
                 class={
@@ -242,7 +240,7 @@ defmodule AiposWeb.Sidebar do
                 <Heroicons.icon name="cog-6-tooth" type="solid" class="h-5 w-5 mr-3 text-gray-400" />
                 <span>Settings</span>
               </a>
-            </li>
+            </li> --%>
           </ul>
         </div>
         

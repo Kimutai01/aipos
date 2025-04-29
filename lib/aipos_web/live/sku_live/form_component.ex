@@ -250,8 +250,7 @@ defmodule AiposWeb.ProductSkuLive.FormComponent do
               <label class="block text-sm font-medium text-gray-700">
                 SKU Image (Optional)
               </label>
-              
-    <!-- Display existing image if it exists and user hasn't chosen to remove it -->
+
               <%= if Map.get(@product_sku, :image) && !@remove_image do %>
                 <div class="mt-2 flex items-center space-x-3">
                   <div class="h-20 w-20 rounded-md overflow-hidden bg-gray-100">
@@ -280,8 +279,7 @@ defmodule AiposWeb.ProductSkuLive.FormComponent do
                     </button>
                   </div>
                 <% end %>
-                
-    <!-- File upload input -->
+
                 <.live_file_input
                   upload={@uploads.sku_image}
                   class="block w-full text-sm text-gray-500

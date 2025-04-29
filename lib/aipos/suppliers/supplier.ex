@@ -14,7 +14,8 @@ defmodule Aipos.Suppliers.Supplier do
     field :phone, :string
     field :status, :string
     field :tags, {:array, :string}
-    field :organization_id, :id
+
+    belongs_to :organization, Aipos.Organizations.Organization
 
     timestamps(type: :utc_datetime)
   end
@@ -33,7 +34,8 @@ defmodule Aipos.Suppliers.Supplier do
       :payment_terms,
       :lead_time,
       :last_order_date,
-      :notes
+      :notes,
+      :organization_id
     ])
     |> validate_required([
       :name,
@@ -41,10 +43,8 @@ defmodule Aipos.Suppliers.Supplier do
       :phone,
       :email,
       :address,
-      :tags,
       :status,
-      :payment_terms,
-      :lead_time
+      :payment_terms
     ])
   end
 end

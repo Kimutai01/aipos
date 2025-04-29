@@ -21,6 +21,14 @@ defmodule Aipos.Customers do
     Repo.all(Customer)
   end
 
+  def list_customers_by_organization_id(organization_id) do
+    from(c in Customer,
+      where: c.organization_id == ^organization_id,
+      order_by: [desc: c.inserted_at]
+    )
+    |> Repo.all()
+  end
+
   @doc """
   Gets a single customer.
 

@@ -44,6 +44,14 @@ defmodule AiposWeb.CustomerLive.FormComponent do
 
           <div>
             <.input
+              field={@form[:organization_id]}
+              type="hidden"
+              value={@current_user.organization_id}
+            />
+          </div>
+
+          <div>
+            <.input
               field={@form[:email]}
               type="email"
               label="Email"
