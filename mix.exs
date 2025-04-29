@@ -64,7 +64,8 @@ defmodule Aipos.MixProject do
       {:timex, "~> 3.7"},
       {:cachex, "~> 3.4"},
       {:tesla, "~> 1.11"},
-      {:mint, "~> 1.0"}
+      {:mint, "~> 1.0"},
+      {:req, "~> 0.5.0"}
     ]
   end
 

@@ -14,6 +14,11 @@ defmodule AiposWeb.SuccessLive.Index do
   def handle_params(%{"trxref" => transaction_id}, _uri, socket) do
     case get_and_update_sale(transaction_id) do
       {:ok, sale, sale_items} ->
+        Aipos.Tiara.send_message(
+          sale.phone_number,
+          "Your payment was successful. Thank you for your order."
+        )
+
         {:noreply,
          socket
          |> assign(:sale, sale)
