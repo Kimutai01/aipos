@@ -94,7 +94,7 @@ defmodule Aipos.Gemini do
       * protein: Exact protein content per 100g (e.g., "7.5g")
       * carbs: Exact carbohydrate content per 100g (e.g., "59.2g")
       * fat: Exact fat content per 100g (e.g., "31.8g")
-    - healthBenefits: Any specific health benefits associated with the product
+    - healthBenefits: Any specific health benefits associated with the product (IMPORTANT: This should be a list/array, not a string)
     - usageInstructions: Detailed instructions on how to use the product
     - additionalInfo: Any other relevant information (allergens, storage instructions, etc.)
 
@@ -102,6 +102,7 @@ defmodule Aipos.Gemini do
     If nutritional information is not known exactly, make educated estimates based on similar products.
 
     IMPORTANT: Return ONLY the raw JSON object. Do not include markdown code blocks, backticks, or any other text.
+    Ensure that healthBenefits is ALWAYS an array of strings, even if there is only one benefit.
     """
   end
 
@@ -152,7 +153,15 @@ defmodule Aipos.Gemini do
               |> String.replace(~r/```\s*$/, "")
               |> String.trim()
 
-            Jason.decode(clean_text)
+            case Jason.decode(clean_text) do
+              {:ok, data} ->
+                # Normalize data structure to ensure consistent types
+                normalized_data = normalize_data_types(data)
+                {:ok, normalized_data}
+
+              error ->
+                error
+            end
           else
             {:error, "No text content in response"}
           end
@@ -164,6 +173,27 @@ defmodule Aipos.Gemini do
       e ->
         {:error, "Failed to parse Gemini response: #{inspect(e)} with text: #{inspect(response)}"}
     end
+  end
+
+  defp normalize_data_types(data) do
+    data
+    |> Map.update("ingredients", [], fn
+      nil -> []
+      ingredients when is_list(ingredients) -> ingredients
+      ingredient when is_binary(ingredient) -> [ingredient]
+      _ -> []
+    end)
+    |> Map.update("healthBenefits", [], fn
+      nil -> []
+      benefits when is_list(benefits) -> benefits
+      benefit when is_binary(benefit) -> [benefit]
+      _ -> []
+    end)
+    |> Map.update("nutritionalInfo", %{}, fn
+      nil -> %{}
+      info when is_map(info) -> info
+      _ -> %{}
+    end)
   end
 
   def update_product_with_ai_info(product_id, name, description, image_path) do

@@ -3,7 +3,6 @@ defmodule AiposWeb.Components.SkuAiInfo do
   import AiposWeb.CoreComponents
 
   def sku_ai_info(assigns) do
-    # Parse JSON strings to Elixir data structures
     assigns =
       assigns
       |> assign_new(:ingredients, fn ->
@@ -20,7 +19,8 @@ defmodule AiposWeb.Components.SkuAiInfo do
       end)
       |> assign_new(:health_benefits, fn ->
         case Jason.decode(assigns.sku.ai_health_benefits || "[]") do
-          {:ok, benefits} -> benefits
+          {:ok, benefits} when is_list(benefits) -> benefits
+          {:ok, benefit} when is_binary(benefit) -> [benefit]
           _ -> []
         end
       end)
@@ -52,7 +52,6 @@ defmodule AiposWeb.Components.SkuAiInfo do
       <div class={"border-t border-gray-100 #{if !@show_info, do: "hidden"}"}>
         <div class="px-4 py-4 sm:p-6">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <!-- Ingredients -->
             <div>
               <h4 class="text-sm font-medium text-gray-900 mb-2">Ingredients</h4>
               <%= if length(@ingredients) > 0 do %>
@@ -65,8 +64,7 @@ defmodule AiposWeb.Components.SkuAiInfo do
                 <p class="text-sm text-gray-500 italic">No ingredient information available</p>
               <% end %>
             </div>
-            
-    <!-- Nutritional Information -->
+
             <div>
               <h4 class="text-sm font-medium text-gray-900 mb-2">Nutritional Information</h4>
               <%= if map_size(@nutritional_info) > 0 do %>
@@ -101,16 +99,14 @@ defmodule AiposWeb.Components.SkuAiInfo do
               <% end %>
             </div>
           </div>
-          
-    <!-- Usage Instructions -->
+
           <%= if @sku.ai_usage_instructions && @sku.ai_usage_instructions != "" do %>
             <div class="mt-4">
               <h4 class="text-sm font-medium text-gray-900 mb-2">How to Use</h4>
               <p class="text-sm text-gray-600">{@sku.ai_usage_instructions}</p>
             </div>
           <% end %>
-          
-    <!-- Health Benefits -->
+
           <%= if length(@health_benefits) > 0 do %>
             <div class="mt-4">
               <h4 class="text-sm font-medium text-gray-900 mb-2">Health Benefits</h4>
@@ -121,8 +117,7 @@ defmodule AiposWeb.Components.SkuAiInfo do
               </ul>
             </div>
           <% end %>
-          
-    <!-- Additional Information -->
+
           <%= if @sku.ai_additional_info && @sku.ai_additional_info != "" do %>
             <div class="mt-4">
               <h4 class="text-sm font-medium text-gray-900 mb-2">Additional Information</h4>
