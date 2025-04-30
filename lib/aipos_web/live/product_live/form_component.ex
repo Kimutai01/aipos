@@ -429,7 +429,7 @@ defmodule AiposWeb.ProductLive.FormComponent do
               <% end %>
             </div>
           </div>
-          
+
     <!-- SKUs Section -->
           <div class="border-t border-gray-200 pt-6">
             <div class="flex justify-between items-center mb-4">
@@ -441,7 +441,7 @@ defmodule AiposWeb.ProductLive.FormComponent do
                 Add different sizes, packages, or variants of this product
               </div>
             </div>
-            
+
     <!-- SKU Table -->
             <%= if @skus != [] do %>
               <div class="mb-4 overflow-x-auto">
@@ -558,7 +558,7 @@ defmodule AiposWeb.ProductLive.FormComponent do
                 No variants added yet. Add your first variant below.
               </div>
             <% end %>
-            
+
     <!-- Button to add SKU -->
             <div class="mt-4">
               <button
@@ -627,7 +627,7 @@ defmodule AiposWeb.ProductLive.FormComponent do
                       name="product_sku[rfid_tag]"
                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                     >
-                      <option value="">Select a Card (optional)</option>
+                      <option value="">Select a Card</option>
                       <%= for card <- @cards do %>
                         <option value={card.card} selected={@current_sku.rfid_tag == card.card}>
                           {card.card}
@@ -760,7 +760,7 @@ defmodule AiposWeb.ProductLive.FormComponent do
                       </div>
                     <% end %>
                   </div>
-                  
+
     <!-- Hidden field for organization_id -->
                   <input
                     type="hidden"

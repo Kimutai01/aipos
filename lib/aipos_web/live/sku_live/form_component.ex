@@ -10,6 +10,7 @@ defmodule AiposWeb.ProductSkuLive.FormComponent do
      socket
      |> assign(:uploaded_files, [])
      |> assign(:remove_image, false)
+     |> assign(:cards, Aipos.Cards.list_cards())
      |> allow_upload(:sku_image,
        accept: ~w(.jpg .jpeg .png),
        max_entries: 1,
@@ -228,12 +229,28 @@ defmodule AiposWeb.ProductSkuLive.FormComponent do
             </div>
 
             <div class="sm:col-span-6">
-              <.input
-                field={@form[:rfid_tag]}
-                type="text"
-                label="RFID Tag"
-                placeholder="Enter RFID tag (optional)"
-              />
+              <label class="block text-sm font-medium text-gray-700">RFID Card</label>
+              <select
+                name="product_sku[rfid_tag]"
+                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                id={@form[:rfid_tag].id}
+              >
+                <option value="">Select a Card</option>
+                <%= for card <- @cards do %>
+                  <option value={card.card} selected={@form[:rfid_tag].value == card.card}>
+                    {card.card}{if card.device, do: " (#{card.device})"}
+                  </option>
+                <% end %>
+              </select>
+              <p class="mt-1 text-xs text-gray-500">
+                Link this product to an RFID card for inventory tracking
+              </p>
+
+              <%= if @form[:rfid_tag].errors != [] do %>
+                <div class="mt-1 text-sm text-red-600">
+                  {Enum.map(@form[:rfid_tag].errors, fn {msg, _} -> msg end) |> Enum.join(", ")}
+                </div>
+              <% end %>
             </div>
 
             <div class="sm:col-span-6">

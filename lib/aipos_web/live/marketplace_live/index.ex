@@ -1093,7 +1093,7 @@ defmodule AiposWeb.MarketplaceLive.Index do
 
                     <div class="mb-4">
                       <label class="block text-sm font-medium text-gray-700 mb-1">
-                        Email (optional)
+                        Email
                       </label>
                       <input
                         type="email"
