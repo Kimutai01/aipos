@@ -8,7 +8,7 @@ defmodule Aipos.Products.Product do
     field :name, :string
 
     belongs_to :organization, Aipos.Organizations.Organization
-    belongs_to :user, Aipos.Users.User
+    belongs_to :user, Aipos.Accounts.User
 
     has_many :product_skus, Aipos.ProductSkus.ProductSku
 

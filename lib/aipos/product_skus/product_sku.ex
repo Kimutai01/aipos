@@ -43,7 +43,7 @@ defmodule Aipos.ProductSkus.ProductSku do
     field :temp_id, :string, virtual: true
     field :delete, :boolean, virtual: true
     belongs_to :organization, Aipos.Organizations.Organization
-    belongs_to :user, Aipos.Users.User
+    belongs_to :user, Aipos.Accounts.User
   end
 
   @doc false

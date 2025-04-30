@@ -17,7 +17,7 @@ defmodule Aipos.Sales.Sale do
     field :customer_id, :id
     # field :organization_id, :id
     belongs_to :register, Aipos.Registers.Register
-    belongs_to :cashier, Aipos.Users.User
+    belongs_to :cashier, Aipos.Accounts.User
     belongs_to :organization, Aipos.Organizations.Organization
 
     timestamps(type: :utc_datetime)
