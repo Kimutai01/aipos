@@ -17,7 +17,8 @@ defmodule Aipos.Organizations.Organization do
   @doc false
   def changeset(organization, attrs) do
     organization
-    |> cast(attrs, [:name, :address, :phone, :email, :logo])
-    |> validate_required([:name, :address, :phone, :email, :logo])
+    |> cast(attrs, [:name, :address, :phone, :email, :logo, :description, :created_by_id])
+    |> validate_required([:name, :address, :phone, :email])
+    |> validate_format(:email, ~r/^[^\s]+@[^\s]+$/, message: "must be a valid email")
   end
 end
