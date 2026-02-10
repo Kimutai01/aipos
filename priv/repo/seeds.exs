@@ -19,54 +19,50 @@ alias Aipos.Registers.Register
 require Logger
 
 # Initialize HTTPClient for image downloads
-Application.ensure_all_started(:inets)
-Application.ensure_all_started(:ssl)
+# Commented out since we're using placeholder images instead of downloading
+# Application.ensure_all_started(:inets)
+# Application.ensure_all_started(:ssl)
 
 # ============================================================================
 # Helper Functions as Variables
 # ============================================================================
 
 # Function to download an image from a URL and save it locally
-download_and_save_image = fn url, prefix ->
-  # Create the uploads directory if it doesn't exist
-  uploads_dir = Path.join(["priv", "static", "uploads"])
-  File.mkdir_p!(uploads_dir)
-
-  # Generate a unique filename
-  filename = "#{prefix}_#{:rand.uniform(100_000)}_#{Path.basename(url)}"
-  # If the URL doesn't end with a recognizable extension, add .jpg
-  filename = if Path.extname(filename) == "", do: "#{filename}.jpg", else: filename
-
-  dest = Path.join(uploads_dir, filename)
-
-  # Download the image
-  case :httpc.request(:get, {String.to_charlist(url), []}, [], body_format: :binary) do
-    {:ok, {{_, 200, _}, _, body}} ->
-      # Save the image to the uploads directory
-      File.write!(dest, body)
-      {:ok, "/uploads/#{filename}"}
-
-    error ->
-      Logger.error("Failed to download image from #{url}: #{inspect(error)}")
-      # Return a default image path
-      {:error, "Failed to download image"}
-  end
-end
+# Commented out since we're using placeholder images for faster seeding
+# download_and_save_image = fn url, prefix ->
+#   # Create the uploads directory if it doesn't exist
+#   uploads_dir = Path.join(["priv", "static", "uploads"])
+#   File.mkdir_p!(uploads_dir)
+#
+#   # Generate a unique filename
+#   filename = "#{prefix}_#{:rand.uniform(100_000)}_#{Path.basename(url)}"
+#   # If the URL doesn't end with a recognizable extension, add .jpg
+#   filename = if Path.extname(filename) == "", do: "#{filename}.jpg", else: filename
+#
+#   dest = Path.join(uploads_dir, filename)
+#
+#   # Download the image
+#   case :httpc.request(:get, {String.to_charlist(url), []}, [], body_format: :binary) do
+#     {:ok, {{_, 200, _}, _, body}} ->
+#       # Save the image to the uploads directory
+#       File.write!(dest, body)
+#       {:ok, "/uploads/#{filename}"}
+#
+#     error ->
+#       Logger.error("Failed to download image from #{url}: #{inspect(error)}")
+#       # Return a default image path
+#       {:error, "Failed to download image"}
+#   end
+# end
 
 # Helper to safely download an image and provide a fallback
-# Fixed to handle optional arguments properly in anonymous function
+# Modified to skip download and use placeholders directly for faster seeding
 safe_download_image = fn
-  url, prefix, nil ->
-    case download_and_save_image.(url, prefix) do
-      {:ok, path} -> path
-      {:error, _} -> nil
-    end
+  _url, _prefix, nil ->
+    nil
 
-  url, prefix, fallback ->
-    case download_and_save_image.(url, prefix) do
-      {:ok, path} -> path
-      {:error, _} -> fallback
-    end
+  _url, _prefix, fallback ->
+    fallback
 end
 
 # ============================================================================
