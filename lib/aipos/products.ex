@@ -23,6 +23,15 @@ defmodule Aipos.Products do
     |> Repo.preload(:product_skus)
   end
 
+  def list_products(organization_id) do
+    from(p in Product,
+      where: p.organization_id == ^organization_id,
+      order_by: [asc: :name],
+      preload: [:product_skus]
+    )
+    |> Repo.all()
+  end
+
   def list_product_skus(product_id) do
     from(s in ProductSku,
       where: s.product_id == ^product_id,

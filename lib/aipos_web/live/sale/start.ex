@@ -159,10 +159,10 @@ defmodule AiposWeb.Live.Sale.Start do
     {:noreply, assign(socket, :barcode, barcode)}
   end
 
-  def handle_event("search_products", %{"query" => query}, socket) do
+  def handle_event("search_products", %{"value" => query}, socket) do
     results =
       if String.length(query) >= 2 do
-        search_products(query, socket.assigns.current_user.organization_id)
+        search_products(query, socket.assigns.current_organization.id)
       else
         []
       end
@@ -174,7 +174,10 @@ defmodule AiposWeb.Live.Sale.Start do
   end
 
   def handle_event("add_from_search", %{"id" => id}, socket) do
-    product_sku = ProductSkus.get_product_sku!(id)
+    product_sku = 
+      ProductSkus.get_product_sku!(id)
+      |> Aipos.Repo.preload(:product)
+    
     cart_items = add_to_cart(socket.assigns.cart_items, product_sku)
     total = calculate_total(cart_items)
 
@@ -537,7 +540,7 @@ defmodule AiposWeb.Live.Sale.Start do
         (ilike(s.name, ^"%#{query}%") or ilike(p.name, ^"%#{query}%") or
            ilike(s.barcode, ^"%#{query}%")) and s.organization_id == ^organization_id,
       preload: [:product],
-      limit: 10
+      limit: 5
     )
     |> Aipos.Repo.all()
   end
@@ -866,7 +869,6 @@ defmodule AiposWeb.Live.Sale.Start do
                     placeholder="Search by name or barcode..."
                     value={@search_query}
                     phx-keyup="search_products"
-                    phx-key="keyup"
                     phx-debounce="300"
                     class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
                   />

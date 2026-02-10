@@ -6,20 +6,23 @@ defmodule AiposWeb.ProductLive.Index do
 
   @impl true
   def mount(_params, _session, socket) do
+    current_organization = get_organization(socket.assigns.current_user)
+
     socket =
       socket
       |> assign(:active_page, "products")
       |> assign(:current_user, socket.assigns.current_user)
-
-      |> assign(:current_organization, get_organization(socket.assigns.current_user))
-      |> assign(:products, Products.list_products())
+      |> assign(:current_organization, current_organization)
+      |> assign(:products, Products.list_products(current_organization.id))
 
     {:ok, socket}
   end
 
   @impl true
   def handle_params(params, _url, socket) do
-    socket = assign(socket, :products, Products.list_products())
+    socket =
+      assign(socket, :products, Products.list_products(socket.assigns.current_organization.id))
+
     {:noreply, apply_action(socket, socket.assigns.live_action, params)}
   end
 
