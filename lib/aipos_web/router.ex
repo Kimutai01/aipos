@@ -68,6 +68,7 @@ defmodule AiposWeb.Router do
 
     post "/iot/card", IotController, :create_card
     post "/iot/status", IotController, :get_product_status
+    post "/paystack/webhook", PaystackWebhookController, :create
   end
 
   scope "/", AiposWeb do

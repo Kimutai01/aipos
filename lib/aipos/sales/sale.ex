@@ -12,6 +12,7 @@ defmodule Aipos.Sales.Sale do
     field :transaction_id, :string
     field :subtotal, :decimal, default: Decimal.new(0)
     field :phone_number, :string
+    field :payment_channel, :string
     # field :register_id, :id
     # field :cashier_id, :id
     field :customer_id, :id
@@ -39,7 +40,8 @@ defmodule Aipos.Sales.Sale do
       # :customer_id,
       :organization_id,
       :transaction_id,
-      :paid_at
+      :paid_at,
+      :payment_channel
     ])
     |> validate_required([
       :total_amount,

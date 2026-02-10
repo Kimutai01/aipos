@@ -2,6 +2,7 @@ defmodule AiposWeb.Live.SelfCheckout do
   use AiposWeb, :live_view
   alias Aipos.Products
   alias Aipos.Sales
+  alias Aipos.Paystack
 
   @impl true
   def mount(_params, _session, socket) do
@@ -19,12 +20,56 @@ defmodule AiposWeb.Live.SelfCheckout do
       |> assign(:payment_status, nil)
       |> assign(:payment_processing, false)
       |> assign(:receipt_number, nil)
+      |> assign(:transaction_id, nil)
+      |> assign(:payment_error, nil)
       |> allow_upload(:product_image, accept: ~w(.jpg .jpeg .png), max_entries: 1)
 
     if connected?(socket), do: Process.send_after(self(), :check_scanner, 1000)
 
     {:ok, socket}
   end
+
+  @impl true
+  def handle_params(params, _url, socket) do
+    {:noreply, handle_payment_callback(socket, params)}
+  end
+
+  defp handle_payment_callback(socket, %{"payment_status" => "success", "transaction_id" => transaction_id}) do
+    # Verify transaction with Paystack
+    case Paystack.verify_transaction(transaction_id) do
+      {:ok, %{"status" => "success"}} ->
+        case Sales.get_sale_by_transaction_id(transaction_id) do
+          nil ->
+            socket
+            |> put_flash(:error, "Sale not found")
+
+          sale ->
+            # Update sale status
+            {:ok, _updated_sale} = Sales.update_sale(sale, %{status: "completed"})
+
+            socket
+            |> assign(:payment_status, "success")
+            |> assign(:receipt_number, transaction_id)
+            |> assign(:show_payment_modal, true)
+            |> assign(:payment_processing, false)
+            |> put_flash(:info, "Payment successful! Your receipt number is #{transaction_id}")
+        end
+
+      {:ok, %{"status" => status}} ->
+        socket
+        |> assign(:payment_status, "failed")
+        |> assign(:payment_processing, false)
+        |> put_flash(:error, "Payment verification failed. Status: #{status}")
+
+      {:error, reason} ->
+        socket
+        |> assign(:payment_status, "failed")
+        |> assign(:payment_processing, false)
+        |> put_flash(:error, "Payment verification error: #{reason}")
+    end
+  end
+
+  defp handle_payment_callback(socket, _params), do: socket
 
   @impl true
   def handle_event("add_item", %{"barcode" => barcode}, socket) do
@@ -146,13 +191,73 @@ defmodule AiposWeb.Live.SelfCheckout do
   end
 
   def handle_event("process_payment", _, socket) do
-    socket = assign(socket, :payment_processing, true)
+    transaction_id = "SCO-#{:os.system_time(:millisecond)}"
+    
+    # Create pending sale first
+    sale_params = %{
+      total_amount: Decimal.new("#{socket.assigns.total_amount}"),
+      payment_method: socket.assigns.payment_method,
+      amount_tendered: Decimal.new("#{socket.assigns.total_amount}"),
+      change_due: Decimal.new(0),
+      status: "pending_payment",
+      transaction_id: transaction_id,
+      organization_id: 1  # Self-checkout - use default organization or get from config
+    }
 
-    # For a real app, you'd process the payment here
-    # For demo, we'll just simulate a payment process
-    Process.send_after(self(), {:payment_processed, true, "SCO#{:rand.uniform(1_000_000)}"}, 3000)
+    case Aipos.Sales.create_sale(sale_params) do
+      {:ok, sale} ->
+        # Create sale items
+        Enum.each(socket.assigns.cart_items, fn item ->
+          item_params = %{
+            sale_id: sale.id,
+            product_sku_id: item.id,
+            name: item.name,
+            quantity: item.quantity,
+            price: Decimal.new("#{item.price}"),
+            subtotal: Decimal.new("#{item.subtotal}"),
+            organization_id: 1
+          }
 
-    {:noreply, socket}
+          {:ok, _sale_item} = Aipos.Sales.create_sale_item(item_params)
+        end)
+
+        # Initialize Paystack payment
+        email = if socket.assigns.payment_phone != "" do
+          socket.assigns.payment_phone <> "@aipos.local"
+        else
+          "customer@aipos.local"
+        end
+        
+        callback_url = "#{AiposWeb.Endpoint.url()}/self_checkout?payment_status=success&transaction_id=#{transaction_id}"
+
+        case Paystack.initialize(email, Decimal.new("#{socket.assigns.total_amount}"), transaction_id, callback_url) do
+          {:ok, %{"authorization_url" => authorization_url}} ->
+            {:noreply,
+             socket
+             |> assign(:payment_processing, true)
+             |> assign(:transaction_id, transaction_id)
+             |> redirect(external: authorization_url)}
+
+          {:error, error} ->
+            # Delete the pending sale if payment initialization fails
+            Sales.delete_sale(sale)
+
+            {:noreply,
+             socket
+             |> assign(:payment_processing, false)
+             |> assign(:payment_error, "Failed to initialize payment: #{error}")
+             |> put_flash(:error, "Failed to initialize payment: #{error}")}
+        end
+
+      {:error, changeset} ->
+        errors = Ecto.Changeset.traverse_errors(changeset, &translate_error/1)
+        error_message = "Error creating sale: #{inspect(errors)}"
+
+        {:noreply,
+         socket
+         |> assign(:payment_processing, false)
+         |> put_flash(:error, error_message)}
+    end
   end
 
   def handle_event("reset_sale", _, socket) do
@@ -481,6 +586,7 @@ defmodule AiposWeb.Live.SelfCheckout do
               <div class="mb-4">
                 <input
                   type="text"
+                  name="query"
                   placeholder="Search by name..."
                   value={@search_query}
                   phx-keyup="search_products"
@@ -620,58 +726,6 @@ defmodule AiposWeb.Live.SelfCheckout do
                       </button>
                     </div>
                   </div>
-
-                  <%= if @payment_method == "mpesa" do %>
-                    <div class="mb-6">
-                      <label class="block text-sm font-medium text-gray-700 mb-1">
-                        M-Pesa Phone Number
-                      </label>
-                      <input
-                        type="tel"
-                        placeholder="Enter phone number..."
-                        value={@payment_phone}
-                        phx-change="update_payment_phone"
-                        phx-debounce="300"
-                        class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                      />
-                      <p class="mt-1 text-xs text-gray-500">
-                        Enter the phone number registered with M-Pesa
-                      </p>
-                    </div>
-
-                    <div class="mb-6 bg-blue-50 border border-blue-200 rounded-md p-4 text-sm text-blue-700">
-                      <p class="flex items-center">
-                        <Heroicons.icon name="information-circle" class="h-5 w-5 mr-2 text-blue-500" />
-                        <span>
-                          You will receive an M-Pesa payment prompt on your phone.
-                          Please enter your PIN to complete the payment.
-                        </span>
-                      </p>
-                    </div>
-                  <% end %>
-
-                  <%= if @payment_method == "card" do %>
-                    <div class="mb-6">
-                      <label class="block text-sm font-medium text-gray-700 mb-1">Card Details</label>
-                      <input
-                        type="text"
-                        placeholder="Card number"
-                        class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full mb-2 sm:text-sm border-gray-300 rounded-md"
-                      />
-                      <div class="grid grid-cols-2 gap-2">
-                        <input
-                          type="text"
-                          placeholder="MM/YY"
-                          class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                        />
-                        <input
-                          type="text"
-                          placeholder="CVC"
-                          class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                        />
-                      </div>
-                    </div>
-                  <% end %>
 
                   <div class="flex justify-end">
                     <button

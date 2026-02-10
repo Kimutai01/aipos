@@ -48,7 +48,7 @@ if config_env() == :prod do
       You can generate one by calling: mix phx.gen.secret
       """
 
-  host = System.get_env("PHX_HOST") || "example.com"
+  host = System.get_env("PHX_HOST") || "pos.kiprotichkimutai.dev"
   port = String.to_integer(System.get_env("PORT") || "4000")
 
   config :aipos, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
@@ -56,12 +56,14 @@ if config_env() == :prod do
   config :aipos, AiposWeb.Endpoint,
     url: [host: host, port: 443, scheme: "https"],
     http: [
-      # Enable IPv6 and bind on all interfaces.
-      # Set it to  {0, 0, 0, 0, 0, 0, 0, 1} for local network only access.
-      # See the documentation on https://hexdocs.pm/bandit/Bandit.html#t:options/0
-      # for details about using IPv6 vs IPv4 and loopback vs public addresses.
       ip: {0, 0, 0, 0, 0, 0, 0, 0},
       port: port
+    ],
+    check_origin: [
+      "https://pos.kiprotichkimutai.dev",
+      "https://kiprotichkimutai.dev",
+      "https://pos.socoafrica.com",
+      "https://socoafrica.com"
     ],
     secret_key_base: secret_key_base
 
@@ -115,3 +117,7 @@ if config_env() == :prod do
   #
   # See https://hexdocs.pm/swoosh/Swoosh.html#module-installation for details.
 end
+
+# Paystack configuration
+config :aipos, :paystack_secret_key,
+  System.get_env("PAYSTACK_SECRET_KEY") || "sk_test_4a6708cf3369c72531f853185839a83b98ed025b"

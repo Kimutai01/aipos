@@ -1,9 +1,8 @@
 defmodule AiposWeb.Live.Sale.Start do
   use AiposWeb, :live_view
   alias Aipos.Sales
-  alias Aipos.Products
   alias Aipos.ProductSkus
-  alias Aipos.Accounts
+  alias Aipos.Paystack
   import Ecto.Query
 
   @impl true
@@ -34,6 +33,9 @@ defmodule AiposWeb.Live.Sale.Start do
       |> assign(:show_customer_search, false)
       |> assign(:session_started, false)
       |> assign(:show_payment_modal, false)
+      |> assign(:transaction_id, nil)
+      |> assign(:payment_processing, false)
+      |> assign(:payment_error, nil)
 
     if connected?(socket), do: Process.send_after(self(), :check_scanner, 1000)
 
@@ -45,15 +47,58 @@ defmodule AiposWeb.Live.Sale.Start do
     {:noreply, apply_action(socket, socket.assigns.live_action, params)}
   end
 
-  defp apply_action(socket, :index, _params) do
+  defp apply_action(socket, :index, params) do
     socket
     |> assign(:page_title, "Start New Sale")
+    |> handle_payment_callback(params)
   end
 
-  defp apply_action(socket, nil, _params) do
+  defp apply_action(socket, nil, params) do
     socket
     |> assign(:page_title, "Start New Sale")
+    |> handle_payment_callback(params)
   end
+
+  defp handle_payment_callback(socket, %{"payment_status" => "success", "transaction_id" => transaction_id}) do
+    # Verify transaction with Paystack
+    case Paystack.verify_transaction(transaction_id) do
+      {:ok, %{"status" => "success"}} ->
+        case Sales.get_sale_by_transaction_id(transaction_id) do
+          nil ->
+            socket
+            |> put_flash(:error, "Sale not found")
+
+          sale ->
+            # Update sale status and stock
+            {:ok, updated_sale} = Sales.update_sale(sale, %{status: "completed"})
+            
+            # Update stock quantities
+            sale_items = Sales.list_sale_items_by_sale_id(sale.id)
+            Enum.each(sale_items, fn item ->
+              update_stock_quantity(item.product_sku_id, item.quantity)
+            end)
+
+            # Update register status
+            if sale.register_id do
+              register = Aipos.Registers.get_register!(sale.register_id)
+              {:ok, _register} = Aipos.Registers.update_register(register, %{status: "available"})
+            end
+
+            socket
+            |> put_flash(:info, "Payment successful! Sale ##{updated_sale.id} completed.")
+        end
+
+      {:ok, %{"status" => status}} ->
+        socket
+        |> put_flash(:error, "Payment verification failed. Status: #{status}")
+
+      {:error, reason} ->
+        socket
+        |> put_flash(:error, "Payment verification error: #{reason}")
+    end
+  end
+
+  defp handle_payment_callback(socket, _params), do: socket
 
   @impl true
   def handle_event("select_register", %{"id" => id}, socket) do
@@ -230,76 +275,157 @@ defmodule AiposWeb.Live.Sale.Start do
   end
 
   def handle_event("complete_sale", _, socket) do
-    if socket.assigns.amount_tendered < Decimal.to_float(socket.assigns.total_amount) do
-      {:noreply, put_flash(socket, :error, "Amount tendered is less than total amount")}
-    else
-      # Create sale in database
-      sale_params = %{
-        register_id: socket.assigns.selected_register.id,
-        cashier_id: socket.assigns.current_user.id,
-        total_amount: socket.assigns.total_amount,
-        payment_method: socket.assigns.payment_method,
-        amount_tendered: Decimal.new("#{socket.assigns.amount_tendered}"),
-        change_due: Decimal.new("#{socket.assigns.change_due}"),
-        status: "completed",
-        organization_id: socket.assigns.current_user.organization_id,
-        customer_id: socket.assigns.customer && socket.assigns.customer.id
-      }
+    cond do
+      # Cash payment - immediate completion
+      socket.assigns.payment_method == "cash" &&
+          socket.assigns.amount_tendered < Decimal.to_float(socket.assigns.total_amount) ->
+        {:noreply, put_flash(socket, :error, "Amount tendered is less than total amount")}
 
-      case Aipos.Sales.create_sale(sale_params) do
-        {:ok, sale} ->
-          # Create sale items
-          Enum.each(socket.assigns.cart_items, fn item ->
-            item_params = %{
-              sale_id: sale.id,
-              product_sku_id: item.sku_id,
-              name: item.name,
-              quantity: item.quantity,
-              price: item.price,
-              subtotal: item.subtotal,
-              organization_id: socket.assigns.current_user.organization_id
-            }
+      socket.assigns.payment_method == "cash" ->
+        complete_cash_sale(socket)
 
-            {:ok, _sale_item} = Aipos.Sales.create_sale_item(item_params)
+      # M-Pesa or Card - redirect to Paystack
+      socket.assigns.payment_method in ["mpesa", "card"] ->
+        initiate_paystack_payment(socket)
 
-            update_stock_quantity(item.sku_id, item.quantity)
-          end)
+      true ->
+        {:noreply, put_flash(socket, :error, "Invalid payment method")}
+    end
+  end
 
-          register = socket.assigns.selected_register
-          {:ok, _register} = Aipos.Registers.update_register(register, %{status: "available"})
+  defp complete_cash_sale(socket) do
+    # Create sale in database
+    sale_params = %{
+      register_id: socket.assigns.selected_register.id,
+      cashier_id: socket.assigns.current_user.id,
+      total_amount: socket.assigns.total_amount,
+      payment_method: socket.assigns.payment_method,
+      amount_tendered: Decimal.new("#{socket.assigns.amount_tendered}"),
+      change_due: Decimal.new("#{socket.assigns.change_due}"),
+      status: "completed",
+      organization_id: socket.assigns.current_user.organization_id,
+      customer_id: socket.assigns.customer && socket.assigns.customer.id
+    }
 
-          # Print receipt here
-          socket =
-            if socket.assigns.payment_method == "cash" do
-              # Signal JS to open cash drawer
-              push_event(socket, "open_cash_drawer", %{})
-            else
-              socket
-            end
+    case Aipos.Sales.create_sale(sale_params) do
+      {:ok, sale} ->
+        # Create sale items
+        Enum.each(socket.assigns.cart_items, fn item ->
+          item_params = %{
+            sale_id: sale.id,
+            product_sku_id: item.sku_id,
+            name: item.name,
+            quantity: item.quantity,
+            price: item.price,
+            subtotal: item.subtotal,
+            organization_id: socket.assigns.current_user.organization_id
+          }
 
-          registers = Aipos.Registers.list_registers(socket.assigns.current_user.id)
+          {:ok, _sale_item} = Aipos.Sales.create_sale_item(item_params)
 
-          {:noreply,
-           socket
-           |> assign(:registers, registers)
-           |> assign(:drawer_opened, socket.assigns.payment_method == "cash")
-           |> assign(:cart_items, [])
-           |> assign(:total_amount, Decimal.new(0))
-           |> assign(:show_payment_modal, false)
-           |> assign(:amount_tendered, 0)
-           |> assign(:change_due, 0)
-           |> assign(:session_started, false)
-           |> assign(:selected_register, nil)
-           |> put_flash(:info, "Sale ##{sale.id} completed successfully!")}
+          update_stock_quantity(item.sku_id, item.quantity)
+        end)
 
-        {:error, changeset} ->
-          errors = Ecto.Changeset.traverse_errors(changeset, &translate_error/1)
-          error_message = "Error completing sale: #{inspect(errors)}"
+        register = socket.assigns.selected_register
+        {:ok, _register} = Aipos.Registers.update_register(register, %{status: "available"})
 
-          {:noreply,
-           socket
-           |> put_flash(:error, error_message)}
-      end
+        registers = Aipos.Registers.list_registers(socket.assigns.current_user.id)
+
+        {:noreply,
+         socket
+         |> assign(:registers, registers)
+         |> assign(:drawer_opened, true)
+         |> assign(:cart_items, [])
+         |> assign(:total_amount, Decimal.new(0))
+         |> assign(:show_payment_modal, false)
+         |> assign(:amount_tendered, 0)
+         |> assign(:change_due, 0)
+         |> assign(:session_started, false)
+         |> assign(:selected_register, nil)
+         |> push_event("open_cash_drawer", %{})
+         |> put_flash(:info, "Sale ##{sale.id} completed successfully!")}
+
+      {:error, changeset} ->
+        errors = Ecto.Changeset.traverse_errors(changeset, &translate_error/1)
+        error_message = "Error completing sale: #{inspect(errors)}"
+
+        {:noreply,
+         socket
+         |> put_flash(:error, error_message)}
+    end
+  end
+
+  defp initiate_paystack_payment(socket) do
+    transaction_id = "SALE-#{:os.system_time(:millisecond)}"
+    
+    # Create pending sale first
+    sale_params = %{
+      register_id: socket.assigns.selected_register.id,
+      cashier_id: socket.assigns.current_user.id,
+      total_amount: socket.assigns.total_amount,
+      payment_method: socket.assigns.payment_method,
+      amount_tendered: socket.assigns.total_amount,
+      change_due: Decimal.new(0),
+      status: "pending_payment",
+      transaction_id: transaction_id,
+      organization_id: socket.assigns.current_user.organization_id,
+      customer_id: socket.assigns.customer && socket.assigns.customer.id
+    }
+
+    case Aipos.Sales.create_sale(sale_params) do
+      {:ok, sale} ->
+        # Create sale items
+        Enum.each(socket.assigns.cart_items, fn item ->
+          item_params = %{
+            sale_id: sale.id,
+            product_sku_id: item.sku_id,
+            name: item.name,
+            quantity: item.quantity,
+            price: item.price,
+            subtotal: item.subtotal,
+            organization_id: socket.assigns.current_user.organization_id
+          }
+
+          {:ok, _sale_item} = Aipos.Sales.create_sale_item(item_params)
+        end)
+
+        # Initialize Paystack payment
+        email = 
+          cond do
+            socket.assigns.customer && socket.assigns.customer.email -> 
+              socket.assigns.customer.email
+            socket.assigns.customer_phone != "" -> 
+              socket.assigns.customer_phone <> "@aipos.local"
+            true -> 
+              socket.assigns.current_user.email
+          end
+        callback_url = "#{AiposWeb.Endpoint.url()}/start_sale?payment_status=success&transaction_id=#{transaction_id}"
+
+        case Paystack.initialize(email, socket.assigns.total_amount, transaction_id, callback_url) do
+          {:ok, %{"authorization_url" => authorization_url}} ->
+            {:noreply,
+             socket
+             |> assign(:payment_processing, true)
+             |> assign(:transaction_id, transaction_id)
+             |> redirect(external: authorization_url)}
+
+          {:error, error} ->
+            # Delete the pending sale if payment initialization fails
+            Sales.delete_sale(sale)
+
+            {:noreply,
+             socket
+             |> assign(:payment_error, "Failed to initialize payment: #{error}")
+             |> put_flash(:error, "Failed to initialize payment: #{error}")}
+        end
+
+      {:error, changeset} ->
+        errors = Ecto.Changeset.traverse_errors(changeset, &translate_error/1)
+        error_message = "Error creating sale: #{inspect(errors)}"
+
+        {:noreply,
+         socket
+         |> put_flash(:error, error_message)}
     end
   end
 
@@ -726,6 +852,7 @@ defmodule AiposWeb.Live.Sale.Start do
                 <div class="mb-4">
                   <input
                     type="text"
+                    name="query"
                     placeholder="Search by name or barcode..."
                     value={@search_query}
                     phx-keyup="search_products"
@@ -972,28 +1099,6 @@ defmodule AiposWeb.Live.Sale.Start do
                     </button>
                   <% end %>
                 </div>
-              </div>
-            <% end %>
-
-            <%= if @payment_method == "mpesa" do %>
-              <div class="mb-6 bg-yellow-50 border border-yellow-200 rounded-md p-4 text-sm text-yellow-700">
-                <p class="flex items-center">
-                  <Heroicons.icon name="information-circle" class="h-5 w-5 mr-2 text-yellow-500" />
-                  <span>
-                    M-Pesa integration would be implemented here. For demo purposes, we'll simulate a successful payment.
-                  </span>
-                </p>
-              </div>
-            <% end %>
-
-            <%= if @payment_method == "card" do %>
-              <div class="mb-6 bg-yellow-50 border border-yellow-200 rounded-md p-4 text-sm text-yellow-700">
-                <p class="flex items-center">
-                  <Heroicons.icon name="information-circle" class="h-5 w-5 mr-2 text-yellow-500" />
-                  <span>
-                    Card payment integration would be implemented here. For demo purposes, we'll simulate a successful payment.
-                  </span>
-                </p>
               </div>
             <% end %>
 
