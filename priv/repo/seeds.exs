@@ -913,160 +913,208 @@ sale1 =
 sale_item1 =
   %SaleItem{}
   |> SaleItem.changeset(%{
+    name: "MacBook Air",
     quantity: 1,
     price: Decimal.new("999.99"),
+    subtotal: Decimal.new("999.99"),
     product_sku_id: laptop_air_sku.id,
-    sale_id: sale1.id
+    sale_id: sale1.id,
+    organization_id: kim_org.id
   })
   |> Repo.insert!()
 
 sale_item2 =
   %SaleItem{}
   |> SaleItem.changeset(%{
+    name: "Banana",
     quantity: 2,
     price: Decimal.new("1.99"),
+    subtotal: Decimal.new("3.98"),
     product_sku_id: banana_sku.id,
-    sale_id: sale1.id
+    sale_id: sale1.id,
+    organization_id: kim_org.id
   })
   |> Repo.insert!()
 
 sale_item3 =
   %SaleItem{}
   |> SaleItem.changeset(%{
+    name: "55-inch 4K TV",
     quantity: 1,
     price: Decimal.new("399.99"),
+    subtotal: Decimal.new("399.99"),
     product_sku_id: tv_55_sku.id,
-    sale_id: sale1.id
+    sale_id: sale1.id,
+    organization_id: kim_org.id
   })
   |> Repo.insert!()
 
 sale_item4 =
   %SaleItem{}
   |> SaleItem.changeset(%{
+    name: "Graphic T-Shirt",
     quantity: 1,
     price: Decimal.new("24.99"),
+    subtotal: Decimal.new("24.99"),
     product_sku_id: graphic_tshirt_sku.id,
-    sale_id: sale1.id
+    sale_id: sale1.id,
+    organization_id: kim_org.id
   })
   |> Repo.insert!()
 
 sale_item5 =
   %SaleItem{}
   |> SaleItem.changeset(%{
+    name: "Casual T-Shirt",
     quantity: 1,
     price: Decimal.new("19.99"),
+    subtotal: Decimal.new("19.99"),
     product_sku_id: casual_tshirt_sku.id,
-    sale_id: sale1.id
+    sale_id: sale1.id,
+    organization_id: kim_org.id
   })
   |> Repo.insert!()
 
 sale_item6 =
   %SaleItem{}
   |> SaleItem.changeset(%{
+    name: "Apple",
     quantity: 1,
     price: Decimal.new("2.99"),
+    subtotal: Decimal.new("2.99"),
     product_sku_id: apple_sku.id,
-    sale_id: sale1.id
+    sale_id: sale1.id,
+    organization_id: kim_org.id
   })
   |> Repo.insert!()
 
 sale_item7 =
   %SaleItem{}
   |> SaleItem.changeset(%{
+    name: "Loveseat",
     quantity: 1,
     price: Decimal.new("349.99"),
+    subtotal: Decimal.new("349.99"),
     product_sku_id: loveseat_sku.id,
-    sale_id: sale1.id
+    sale_id: sale1.id,
+    organization_id: kim_org.id
   })
   |> Repo.insert!()
 
 sale_item8 =
   %SaleItem{}
   |> SaleItem.changeset(%{
+    name: "Sectional Sofa",
     quantity: 1,
     price: Decimal.new("899.99"),
+    subtotal: Decimal.new("899.99"),
     product_sku_id: sectional_sofa_sku.id,
-    sale_id: sale1.id
+    sale_id: sale1.id,
+    organization_id: kim_org.id
   })
   |> Repo.insert!()
 
 sale_item9 =
   %SaleItem{}
   |> SaleItem.changeset(%{
+    name: "43-inch Smart TV",
     quantity: 1,
     price: Decimal.new("599.99"),
+    subtotal: Decimal.new("599.99"),
     product_sku_id: tv_43_sku.id,
-    sale_id: sale1.id
+    sale_id: sale1.id,
+    organization_id: kim_org.id
   })
   |> Repo.insert!()
 
 sale_item10 =
   %SaleItem{}
   |> SaleItem.changeset(%{
+    name: "iPhone 15 Pro",
     quantity: 1,
     price: Decimal.new("399.99"),
+    subtotal: Decimal.new("399.99"),
     product_sku_id: iphone_15_pro_sku.id,
-    sale_id: sale1.id
+    sale_id: sale1.id,
+    organization_id: kim_org.id
   })
   |> Repo.insert!()
 
 sale_item11 =
   %SaleItem{}
   |> SaleItem.changeset(%{
+    name: "MacBook Pro",
     quantity: 1,
     price: Decimal.new("1299.99"),
+    subtotal: Decimal.new("1299.99"),
     product_sku_id: macbook_pro_sku.id,
-    sale_id: sale1.id
+    sale_id: sale1.id,
+    organization_id: kim_org.id
   })
   |> Repo.insert!()
 
 sale_item12 =
   %SaleItem{}
   |> SaleItem.changeset(%{
+    name: "Casual T-Shirt",
     quantity: 1,
     price: Decimal.new("19.99"),
+    subtotal: Decimal.new("19.99"),
     product_sku_id: casual_tshirt_sku.id,
-    sale_id: sale1.id
+    sale_id: sale1.id,
+    organization_id: kim_org.id
   })
   |> Repo.insert!()
 
 sale_item13 =
   %SaleItem{}
   |> SaleItem.changeset(%{
+    name: "Graphic T-Shirt",
     quantity: 1,
     price: Decimal.new("24.99"),
+    subtotal: Decimal.new("24.99"),
     product_sku_id: graphic_tshirt_sku.id,
-    sale_id: sale1.id
+    sale_id: sale1.id,
+    organization_id: kim_org.id
   })
   |> Repo.insert!()
 
 sale_item14 =
   %SaleItem{}
   |> SaleItem.changeset(%{
+    name: "Apple",
     quantity: 1,
     price: Decimal.new("2.99"),
+    subtotal: Decimal.new("2.99"),
     product_sku_id: apple_sku.id,
-    sale_id: sale1.id
+    sale_id: sale1.id,
+    organization_id: kim_org.id
   })
   |> Repo.insert!()
 
 sale_item15 =
   %SaleItem{}
   |> SaleItem.changeset(%{
+    name: "Banana",
     quantity: 1,
     price: Decimal.new("1.99"),
+    subtotal: Decimal.new("1.99"),
     product_sku_id: banana_sku.id,
-    sale_id: sale1.id
+    sale_id: sale1.id,
+    organization_id: kim_org.id
   })
   |> Repo.insert!()
 
 sale_item16 =
   %SaleItem{}
   |> SaleItem.changeset(%{
+    name: "Loveseat",
     quantity: 1,
     price: Decimal.new("349.99"),
+    subtotal: Decimal.new("349.99"),
     product_sku_id: loveseat_sku.id,
-    sale_id: sale1.id
+    sale_id: sale1.id,
+    organization_id: kim_org.id
   })
   |> Repo.insert!()
 
