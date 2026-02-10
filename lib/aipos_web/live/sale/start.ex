@@ -7,16 +7,18 @@ defmodule AiposWeb.Live.Sale.Start do
 
   @impl true
   def mount(_params, _session, socket) do
+    current_organization = get_organization(socket.assigns.current_user)
+
     socket =
       socket
       |> assign(:active_page, "new_session")
-      |> assign(:current_organization, get_organization(socket.assigns.current_user))
+      |> assign(:current_organization, current_organization)
       |> assign(:cart_items, [])
       |> assign(:total_amount, Decimal.new(0))
       |> assign(:barcode, "")
       |> assign(
         :registers,
-        Aipos.Registers.list_registers(socket.assigns.current_user.id)
+        Aipos.Registers.list_registers(current_organization.id)
       )
       |> assign(:selected_register, nil)
       |> assign(:drawer_opened, false)
@@ -59,7 +61,10 @@ defmodule AiposWeb.Live.Sale.Start do
     |> handle_payment_callback(params)
   end
 
-  defp handle_payment_callback(socket, %{"payment_status" => "success", "transaction_id" => transaction_id}) do
+  defp handle_payment_callback(socket, %{
+         "payment_status" => "success",
+         "transaction_id" => transaction_id
+       }) do
     # Verify transaction with Paystack
     case Paystack.verify_transaction(transaction_id) do
       {:ok, %{"status" => "success"}} ->
@@ -71,9 +76,10 @@ defmodule AiposWeb.Live.Sale.Start do
           sale ->
             # Update sale status and stock
             {:ok, updated_sale} = Sales.update_sale(sale, %{status: "completed"})
-            
+
             # Update stock quantities
             sale_items = Sales.list_sale_items_by_sale_id(sale.id)
+
             Enum.each(sale_items, fn item ->
               update_stock_quantity(item.product_sku_id, item.quantity)
             end)
@@ -357,7 +363,7 @@ defmodule AiposWeb.Live.Sale.Start do
 
   defp initiate_paystack_payment(socket) do
     transaction_id = "SALE-#{:os.system_time(:millisecond)}"
-    
+
     # Create pending sale first
     sale_params = %{
       register_id: socket.assigns.selected_register.id,
@@ -390,16 +396,20 @@ defmodule AiposWeb.Live.Sale.Start do
         end)
 
         # Initialize Paystack payment
-        email = 
+        email =
           cond do
-            socket.assigns.customer && socket.assigns.customer.email -> 
+            socket.assigns.customer && socket.assigns.customer.email ->
               socket.assigns.customer.email
-            socket.assigns.customer_phone != "" -> 
+
+            socket.assigns.customer_phone != "" ->
               socket.assigns.customer_phone <> "@aipos.local"
-            true -> 
+
+            true ->
               socket.assigns.current_user.email
           end
-        callback_url = "#{AiposWeb.Endpoint.url()}/start_sale?payment_status=success&transaction_id=#{transaction_id}"
+
+        callback_url =
+          "#{AiposWeb.Endpoint.url()}/start_sale?payment_status=success&transaction_id=#{transaction_id}"
 
         case Paystack.initialize(email, socket.assigns.total_amount, transaction_id, callback_url) do
           {:ok, %{"authorization_url" => authorization_url}} ->

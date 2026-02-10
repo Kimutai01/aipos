@@ -6,12 +6,15 @@ defmodule AiposWeb.RegisterLive.Index do
 
   @impl true
   def mount(_params, _session, socket) do
+    current_organization = get_organization(socket.assigns.current_user)
+    IO.inspect(current_organization)
+
     {:ok,
      socket
-     |> stream(:registers, Registers.list_registers())
+     |> stream(:registers, Registers.list_registers(current_organization.id))
      |> assign(:active_page, "registers")
      |> assign(:current_user, socket.assigns.current_user)
-     |> assign(:current_organization, get_organization(socket.assigns.current_user))}
+     |> assign(:current_organization, current_organization)}
   end
 
   @impl true
