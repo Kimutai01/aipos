@@ -3,16 +3,19 @@ defmodule AiposWeb.Live.Sale.Start do
   alias Aipos.Sales
   alias Aipos.ProductSkus
   alias Aipos.Paystack
+  alias Aipos.ReceiptSettings
   import Ecto.Query
 
   @impl true
   def mount(_params, _session, socket) do
     current_organization = get_organization(socket.assigns.current_user)
+    receipt_settings = ReceiptSettings.get_or_create_receipt_settings(current_organization.id)
 
     socket =
       socket
       |> assign(:active_page, "new_session")
       |> assign(:current_organization, current_organization)
+      |> assign(:receipt_settings, receipt_settings)
       |> assign(:cart_items, [])
       |> assign(:total_amount, Decimal.new(0))
       |> assign(:barcode, "")
@@ -38,6 +41,8 @@ defmodule AiposWeb.Live.Sale.Start do
       |> assign(:transaction_id, nil)
       |> assign(:payment_processing, false)
       |> assign(:payment_error, nil)
+      |> assign(:show_receipt_modal, false)
+      |> assign(:completed_sale, nil)
 
     if connected?(socket), do: Process.send_after(self(), :check_scanner, 1000)
 
@@ -85,12 +90,46 @@ defmodule AiposWeb.Live.Sale.Start do
             end)
 
             # Update register status
-            if sale.register_id do
-              register = Aipos.Registers.get_register!(sale.register_id)
-              {:ok, _register} = Aipos.Registers.update_register(register, %{status: "available"})
-            end
+            registers = 
+              if sale.register_id do
+                register = Aipos.Registers.get_register!(sale.register_id)
+                {:ok, _register} = Aipos.Registers.update_register(register, %{status: "available"})
+                Aipos.Registers.list_registers(socket.assigns.current_organization.id)
+              else
+                socket.assigns.registers
+              end
 
+            # Load the sale with all items for receipt display
+            completed_sale = 
+              updated_sale
+              |> Aipos.Repo.preload([:sale_items, :register, :cashier])
+
+            # Load customer if exists
+            customer = 
+              if completed_sale.customer_id do
+                try do
+                  Aipos.Customers.get_customer!(completed_sale.customer_id)
+                rescue
+                  _ -> nil
+                end
+              else
+                nil
+              end
+
+            # Show receipt modal and reset state - DO NOT redirect (cashiers stay in start_sale flow)
             socket
+            |> assign(:registers, registers)
+            |> assign(:completed_sale, completed_sale)
+            |> assign(:show_receipt_modal, true)
+            |> assign(:show_payment_modal, false)
+            |> assign(:cart_items, [])
+            |> assign(:total_amount, Decimal.new(0))
+            |> assign(:amount_tendered, 0)
+            |> assign(:change_due, 0)
+            |> assign(:session_started, false)
+            |> assign(:selected_register, nil)
+            |> assign(:customer, customer)
+            |> assign(:customer_phone, "")
             |> put_flash(:info, "Payment successful! Sale ##{updated_sale.id} completed.")
         end
 
@@ -338,19 +377,20 @@ defmodule AiposWeb.Live.Sale.Start do
         register = socket.assigns.selected_register
         {:ok, _register} = Aipos.Registers.update_register(register, %{status: "available"})
 
-        registers = Aipos.Registers.list_registers(socket.assigns.current_user.id)
+        registers = Aipos.Registers.list_registers(socket.assigns.current_organization.id)
+
+        # Load the sale with all items for receipt display
+        completed_sale = 
+          sale
+          |> Aipos.Repo.preload([:sale_items, :register, :cashier])
 
         {:noreply,
          socket
          |> assign(:registers, registers)
          |> assign(:drawer_opened, true)
-         |> assign(:cart_items, [])
-         |> assign(:total_amount, Decimal.new(0))
+         |> assign(:completed_sale, completed_sale)
+         |> assign(:show_receipt_modal, true)
          |> assign(:show_payment_modal, false)
-         |> assign(:amount_tendered, 0)
-         |> assign(:change_due, 0)
-         |> assign(:session_started, false)
-         |> assign(:selected_register, nil)
          |> push_event("open_cash_drawer", %{})
          |> put_flash(:info, "Sale ##{sale.id} completed successfully!")}
 
@@ -475,6 +515,26 @@ defmodule AiposWeb.Live.Sale.Start do
      |> assign(:customer_phone, "")}
   end
 
+  def handle_event("close_receipt", _, socket) do
+    {:noreply,
+     socket
+     |> assign(:show_receipt_modal, false)
+     |> assign(:completed_sale, nil)
+     |> assign(:cart_items, [])
+     |> assign(:total_amount, Decimal.new(0))
+     |> assign(:amount_tendered, 0)
+     |> assign(:change_due, 0)
+     |> assign(:session_started, false)
+     |> assign(:selected_register, nil)
+     |> assign(:customer, nil)
+     |> assign(:customer_phone, "")}
+  end
+
+  def handle_event("print_receipt", _, socket) do
+    # Trigger print via JavaScript
+    {:noreply, push_event(socket, "print_receipt", %{})}
+  end
+
   @impl true
   def handle_info(:check_scanner, socket) do
     # In a real app, you might check for connected scanners
@@ -556,14 +616,40 @@ defmodule AiposWeb.Live.Sale.Start do
   end
 
   defp format_money(amount) when is_number(amount) do
-    :erlang.float_to_binary(amount, decimals: 2)
+    amount
+    |> Decimal.from_float()
+    |> Decimal.round(2)
+    |> Decimal.to_string(:normal)
   end
 
   defp format_money(%Decimal{} = amount) do
-    Decimal.to_string(amount, :normal)
+    amount
+    |> Decimal.round(2)
+    |> Decimal.to_string(:normal)
   end
 
   defp format_money(_), do: "0.00"
+
+  # Calculate VAT breakdown for Kenya (16% VAT inclusive)
+  defp calculate_vat_breakdown(total_amount) do
+    # Total includes VAT, so we need to extract it
+    # Formula: Total = Subtotal * 1.16
+    # Therefore: Subtotal = Total / 1.16
+    # VAT = Subtotal * 0.16
+    
+    vat_rate = Decimal.new("0.16")
+    divisor = Decimal.add(Decimal.new("1"), vat_rate) # 1.16
+    
+    subtotal = Decimal.div(total_amount, divisor)
+    vat_amount = Decimal.mult(subtotal, vat_rate)
+    
+    %{
+      subtotal: subtotal,
+      vat_amount: vat_amount,
+      vat_rate: "16%",
+      total: total_amount
+    }
+  end
 
   @impl true
   def render(assigns) do
@@ -1131,6 +1217,209 @@ defmodule AiposWeb.Live.Sale.Start do
                 class={"inline-flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 #{if @payment_method == "cash" && @amount_tendered < Decimal.to_float(@total_amount), do: "opacity-50 cursor-not-allowed", else: ""}"}
               >
                 Complete Sale
+              </button>
+            </div>
+          </div>
+        </div>
+      <% end %>
+      
+    <!-- Receipt modal -->
+      <%= if @show_receipt_modal && @completed_sale do %>
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 z-50 flex items-center justify-center" phx-click="close_receipt" onclick="console.log('Overlay clicked'); if (typeof window.closeReceipt === 'function') { window.closeReceipt(); }">
+          <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-auto" onclick="event.stopPropagation();">
+
+            <div class="flex justify-between items-center mb-4">
+              <h2 class="text-xl font-semibold">Sale Receipt</h2>
+              <button
+                type="button"
+                phx-click="close_receipt"
+                onclick="console.log('X button clicked!'); if (typeof window.closeReceipt === 'function') { window.closeReceipt(); } else { console.error('window.closeReceipt not found!'); }"
+                class="text-gray-400 hover:text-gray-500"
+              >
+                <Heroicons.icon name="x-mark" class="h-6 w-6" />
+              </button>
+            </div>
+            
+            <!-- Receipt content -->
+            <div id="receipt-content" class="border border-gray-300 rounded-lg p-6 bg-white">
+              <%= if @receipt_settings.header_text do %>
+                <div class="text-center text-sm text-gray-600 mb-4">
+                  <%= for line <- String.split(@receipt_settings.header_text, "\n") do %>
+                    <p>{line}</p>
+                  <% end %>
+                </div>
+              <% end %>
+
+              <div class="text-center mb-6">
+                <%= if @receipt_settings.show_logo && @current_organization.logo do %>
+                  <div class="flex justify-center mb-3">
+                    <img
+                      src={@current_organization.logo}
+                      alt="Logo"
+                      class="h-16 w-16 object-contain"
+                    />
+                  </div>
+                <% end %>
+
+                <%= if @receipt_settings.show_organization_name do %>
+                  <h3 class="text-2xl font-bold uppercase">{@current_organization.name}</h3>
+                <% end %>
+
+                <%= if @receipt_settings.show_location && @current_organization.location do %>
+                  <p class="text-sm text-gray-700 font-semibold">{@current_organization.location}</p>
+                <% end %>
+
+                <%= if @receipt_settings.show_address && @current_organization.address do %>
+                  <p class="text-sm text-gray-600">{@current_organization.address}</p>
+                <% end %>
+
+                <%= if @receipt_settings.show_phone && @current_organization.phone do %>
+                  <p class="text-sm text-gray-600">Tel: {@current_organization.phone}</p>
+                <% end %>
+
+                <%= if @receipt_settings.show_email && @current_organization.email do %>
+                  <p class="text-sm text-gray-600">Email: {@current_organization.email}</p>
+                <% end %>
+
+                <%= if @receipt_settings.show_kra_pin && @current_organization.kra_pin do %>
+                  <p class="text-sm text-gray-600 font-semibold">VAT No: {@current_organization.kra_pin}</p>
+                  <p class="text-sm text-gray-600">PIN: {@current_organization.kra_pin}</p>
+                <% end %>
+              </div>
+
+              <div class="border-t border-b border-gray-300 py-3 mb-4">
+                <div class="text-sm space-y-1">
+                  <div class="flex justify-between">
+                    <span class="text-gray-600">Receipt #:</span>
+                    <span class="font-semibold">{@completed_sale.id}</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-gray-600">Date:</span>
+                    <span class="font-semibold">
+                      {Calendar.strftime(@completed_sale.inserted_at, "%d/%m/%Y %H:%M")}
+                    </span>
+                  </div>
+
+                  <%= if @receipt_settings.show_cashier do %>
+                    <div class="flex justify-between">
+                      <span class="text-gray-600">Cashier:</span>
+                      <span class="font-semibold">{@completed_sale.cashier.email}</span>
+                    </div>
+                  <% end %>
+
+                  <%= if @receipt_settings.show_register do %>
+                    <div class="flex justify-between">
+                      <span class="text-gray-600">Register:</span>
+                      <span class="font-semibold">{@completed_sale.register.name}</span>
+                    </div>
+                  <% end %>
+
+                  <%= if @receipt_settings.show_customer && @completed_sale.customer_id do %>
+                    <div class="flex justify-between">
+                      <span class="text-gray-600">Customer:</span>
+                      <span class="font-semibold">{@customer && @customer.name}</span>
+                    </div>
+                  <% end %>
+                </div>
+              </div>
+
+              <div class="mb-4">
+                <div class="text-xs font-semibold text-gray-700 mb-2 pb-1 border-b border-gray-400">
+                  ITEM - QTY - PRICE - AMOUNT
+                </div>
+                <%= for item <- @completed_sale.sale_items do %>
+                  <div class="text-sm mb-3">
+                    <div class="font-medium">{item.name}</div>
+                    <div class="flex justify-between text-gray-600 mt-1">
+                      <span>{item.quantity} x KSh {format_money(item.price)}</span>
+                      <span class="font-semibold text-gray-900">KSh {format_money(item.subtotal)}</span>
+                    </div>
+                  </div>
+                <% end %>
+              </div>
+
+              <div class="border-t-2 border-gray-400 pt-3 space-y-2">
+                <%= if @receipt_settings.show_vat_breakdown do %>
+                  <% vat_breakdown = calculate_vat_breakdown(@completed_sale.total_amount) %>
+                  
+                  <div class="flex justify-between text-sm">
+                    <span class="text-gray-600">Subtotal (Excl. VAT):</span>
+                    <span>KSh {format_money(vat_breakdown.subtotal)}</span>
+                  </div>
+                  
+                  <div class="flex justify-between text-sm">
+                    <span class="text-gray-600">VAT ({vat_breakdown.vat_rate}):</span>
+                    <span>KSh {format_money(vat_breakdown.vat_amount)}</span>
+                  </div>
+                  
+                  <div class="flex justify-between text-lg font-bold border-t border-gray-300 pt-2">
+                    <span>TOTAL (Incl. VAT):</span>
+                    <span>KSh {format_money(@completed_sale.total_amount)}</span>
+                  </div>
+                <% else %>
+                  <div class="flex justify-between text-lg font-bold">
+                    <span>TOTAL:</span>
+                    <span>KSh {format_money(@completed_sale.total_amount)}</span>
+                  </div>
+                <% end %>
+                
+                <div class="flex justify-between text-sm mt-3 pt-2 border-t border-gray-200">
+                  <span class="text-gray-600">Payment Method:</span>
+                  <span class="font-medium uppercase">{@completed_sale.payment_method}</span>
+                </div>
+
+                <%= if @completed_sale.payment_method == "cash" do %>
+                  <div class="flex justify-between text-sm">
+                    <span class="text-gray-600">Amount Tendered:</span>
+                    <span>KSh {format_money(@completed_sale.amount_tendered)}</span>
+                  </div>
+                  <%= if Decimal.compare(@completed_sale.change_due, Decimal.new(0)) == :gt do %>
+                    <div class="flex justify-between text-sm">
+                      <span class="text-gray-600">Change:</span>
+                      <span class="text-green-600 font-semibold">
+                        KSh {format_money(@completed_sale.change_due)}
+                      </span>
+                    </div>
+                  <% end %>
+                <% end %>
+              </div>
+
+              <div class="text-center mt-6 pt-4 border-t border-gray-300 text-xs text-gray-500">
+                <%= if @receipt_settings.show_vat_breakdown do %>
+                  <p class="font-semibold uppercase">PRICES INCLUSIVE OF 16% VAT</p>
+                <% end %>
+
+                <%= if @receipt_settings.footer_text do %>
+                  <div class="mt-2">
+                    <%= for line <- String.split(@receipt_settings.footer_text, "\n") do %>
+                      <p class="mt-1">{line}</p>
+                    <% end %>
+                  </div>
+                <% else %>
+                  <p class="mt-2">Thank you for your business!</p>
+                  <p class="mt-1">Please come again</p>
+                <% end %>
+              </div>
+            </div>
+            
+    <!-- Action buttons -->
+            <div class="flex justify-end mt-4 space-x-2">
+              <button
+                type="button"
+                phx-click="close_receipt"
+                onclick="console.log('Close button clicked!'); if (typeof window.closeReceipt === 'function') { window.closeReceipt(); } else { console.error('window.closeReceipt not found!'); alert('Close function not loaded. Please refresh the page.'); }"
+                class="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                phx-click="print_receipt"
+                onclick="console.log('Print button clicked!'); console.log('window.printReceipt exists:', typeof window.printReceipt); if (typeof window.printReceipt === 'function') { console.log('Calling window.printReceipt...'); window.printReceipt(); } else { console.error('window.printReceipt not found or not a function!'); alert('Print function not loaded. Please refresh the page.'); }"
+                class="inline-flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
+              >
+                <Heroicons.icon name="printer" class="h-4 w-4 mr-2" />
+                Print Receipt
               </button>
             </div>
           </div>

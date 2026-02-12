@@ -1,5 +1,5 @@
 defmodule AiposWeb.Sale.Sales do
-  use Phoenix.LiveView
+  use AiposWeb, :live_view
 
   alias Aipos.Sales.Sale
   alias Aipos.Sales.SaleItem
@@ -448,7 +448,7 @@ defmodule AiposWeb.Sale.Sales do
                 phx-click="export_csv"
                 class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
               >
-                <.icon name="document-arrow-down" class="h-4 w-4 mr-2" /> Export CSV
+                <Heroicons.icon name="document-arrow-down" class="h-4 w-4 mr-2" /> Export CSV
               </button>
             </div>
           </div>
@@ -540,7 +540,7 @@ defmodule AiposWeb.Sale.Sales do
                     class="w-full pl-10 pr-4 py-2 border rounded-md shadow-sm"
                   />
                   <div class="absolute left-3 top-2.5 text-gray-400">
-                    <.icon name="magnifying-glass" class="h-5 w-5" />
+                    <Heroicons.icon name="magnifying-glass" class="h-5 w-5" />
                   </div>
                 </form>
               </div>
@@ -564,7 +564,7 @@ defmodule AiposWeb.Sale.Sales do
                       >
                         Receipt #
                         <%= if @sort_field == "receipt_number" do %>
-                          <.icon
+                          <Heroicons.icon
                             name={if @sort_direction == "asc", do: "chevron-up", else: "chevron-down"}
                             class="h-4 w-4 ml-1"
                           />
@@ -578,7 +578,7 @@ defmodule AiposWeb.Sale.Sales do
                       <button phx-click="sort" phx-value-field="created_at" class="flex items-center">
                         Time
                         <%= if @sort_field == "created_at" do %>
-                          <.icon
+                          <Heroicons.icon
                             name={if @sort_direction == "asc", do: "chevron-up", else: "chevron-down"}
                             class="h-4 w-4 ml-1"
                           />
@@ -592,7 +592,7 @@ defmodule AiposWeb.Sale.Sales do
                       <button phx-click="sort" phx-value-field="customer" class="flex items-center">
                         Customer
                         <%= if @sort_field == "customer" do %>
-                          <.icon
+                          <Heroicons.icon
                             name={if @sort_direction == "asc", do: "chevron-up", else: "chevron-down"}
                             class="h-4 w-4 ml-1"
                           />
@@ -616,7 +616,7 @@ defmodule AiposWeb.Sale.Sales do
                       >
                         Payment
                         <%= if @sort_field == "payment_method" do %>
-                          <.icon
+                          <Heroicons.icon
                             name={if @sort_direction == "asc", do: "chevron-up", else: "chevron-down"}
                             class="h-4 w-4 ml-1"
                           />
@@ -634,7 +634,7 @@ defmodule AiposWeb.Sale.Sales do
                       >
                         Amount
                         <%= if @sort_field == "total_amount" do %>
-                          <.icon
+                          <Heroicons.icon
                             name={if @sort_direction == "asc", do: "chevron-up", else: "chevron-down"}
                             class="h-4 w-4 ml-1"
                           />
@@ -687,9 +687,10 @@ defmodule AiposWeb.Sale.Sales do
                           {format_currency(sale.total_amount)}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <a href={"/sales/#{sale.id}"} class="text-indigo-600 hover:text-indigo-900">
-                            View
-                          </a>
+                          <.link navigate={~p"/sales/#{sale.id}"} class="text-indigo-600 hover:text-indigo-900 inline-flex items-center">
+                            <Heroicons.icon name="receipt-percent" class="h-4 w-4 mr-1" />
+                            View Receipt
+                          </.link>
                         </td>
                       </tr>
                     <% end %>
@@ -722,7 +723,7 @@ defmodule AiposWeb.Sale.Sales do
                         class={"relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium #{if @page == 1, do: "text-gray-300", else: "text-gray-500 hover:bg-gray-50"}"}
                       >
                         <span class="sr-only">Previous</span>
-                        <.icon name="chevron-left" class="h-5 w-5" />
+                        <Heroicons.icon name="chevron-left" class="h-5 w-5" />
                       </button>
 
                       <%= for page_num <- max(1, @page - 2)..min(@total_pages, @page + 2) do %>
@@ -742,7 +743,7 @@ defmodule AiposWeb.Sale.Sales do
                         class={"relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium #{if @page == @total_pages, do: "text-gray-300", else: "text-gray-500 hover:bg-gray-50"}"}
                       >
                         <span class="sr-only">Next</span>
-                        <.icon name="chevron-right" class="h-5 w-5" />
+                        <Heroicons.icon name="chevron-right" class="h-5 w-5" />
                       </button>
                     </nav>
                   </div>
@@ -771,11 +772,5 @@ defmodule AiposWeb.Sale.Sales do
       "mpesa" -> "bg-red-100 text-red-800"
       _ -> "bg-gray-100 text-gray-800"
     end
-  end
-
-  defp icon(assigns) do
-    ~H"""
-    <Heroicons.icon name={@name} class={@class} />
-    """
   end
 end

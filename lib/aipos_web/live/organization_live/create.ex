@@ -142,7 +142,7 @@ defmodule AiposWeb.OrganizationLive.Create do
                   field={@form[:phone]}
                   type="text"
                   label="Phone Number"
-                  placeholder="e.g. (123) 456-7890"
+                  placeholder="e.g. 0712345678"
                 />
               </div>
 
@@ -157,11 +157,36 @@ defmodule AiposWeb.OrganizationLive.Create do
 
               <div class="col-span-2">
                 <.input
+                  field={@form[:kra_pin]}
+                  type="text"
+                  label="KRA PIN"
+                  placeholder="e.g. P051234567A"
+                  required
+                />
+                <p class="mt-1 text-xs text-gray-500">
+                  Enter your Kenya Revenue Authority PIN (Format: P followed by 9 digits and a letter)
+                </p>
+              </div>
+
+              <div class="col-span-2">
+                <.input
                   field={@form[:address]}
                   type="text"
                   label="Address"
                   placeholder="Street Address"
                 />
+              </div>
+
+              <div class="col-span-2">
+                <.input
+                  field={@form[:location]}
+                  type="text"
+                  label="Location/Branch"
+                  placeholder="e.g. Nairobi CBD, Westlands, Kiambu Road"
+                />
+                <p class="mt-1 text-xs text-gray-500">
+                  Specify the location or branch name for this outlet
+                </p>
               </div>
 
               <div class="col-span-2 space-y-4">

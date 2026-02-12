@@ -227,6 +227,38 @@ defmodule AiposWeb.Sidebar do
               </a>
             </li>
 
+            <%= if @current_organization do %>
+              <li>
+                <a
+                  href={"/organizations/#{@current_organization.id}/edit"}
+                  class={
+                    active_class(
+                      @active_page == "organization_settings",
+                      "flex items-center py-2 px-4 text-white hover:bg-gray-700 rounded-lg"
+                    )
+                  }
+                >
+                  <Heroicons.icon name="building-storefront" type="solid" class="h-5 w-5 mr-3 text-orange-400" />
+                  <span>Organization Settings</span>
+                </a>
+              </li>
+
+              <li>
+                <a
+                  href="/receipt_settings"
+                  class={
+                    active_class(
+                      @active_page == "receipt_settings",
+                      "flex items-center py-2 px-4 text-white hover:bg-gray-700 rounded-lg"
+                    )
+                  }
+                >
+                  <Heroicons.icon name="receipt-percent" type="solid" class="h-5 w-5 mr-3 text-pink-400" />
+                  <span>Receipt Settings</span>
+                </a>
+              </li>
+            <% end %>
+
             <%!-- <li>
               <a
                 href="/settings"

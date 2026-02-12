@@ -20,6 +20,8 @@ defmodule Aipos.Sales.Sale do
     belongs_to :register, Aipos.Registers.Register
     belongs_to :cashier, Aipos.Accounts.User
     belongs_to :organization, Aipos.Organizations.Organization
+    
+    has_many :sale_items, Aipos.Sales.SaleItem
 
     timestamps(type: :utc_datetime)
   end
