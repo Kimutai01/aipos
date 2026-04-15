@@ -8,6 +8,7 @@ defmodule Aipos.Accounts.User do
     field :hashed_password, :string, redact: true
     field :role, :string, default: "admin"
     belongs_to :organization, Aipos.Organizations.Organization
+    belongs_to :role_ref, Aipos.Accounts.Role, foreign_key: :role_id
     field :current_password, :string, virtual: true, redact: true
     field :confirmed_at, :utc_datetime
 
@@ -43,7 +44,7 @@ defmodule Aipos.Accounts.User do
   """
   def staff_registration_changeset(user, attrs, opts \\ []) do
     user
-    |> cast(attrs, [:email, :password, :staff_id, :name, :role, :active, :organization_id])
+    |> cast(attrs, [:email, :password, :staff_id, :name, :role, :active, :organization_id, :role_id])
     |> validate_required([:email, :password, :staff_id, :name, :role, :organization_id])
     |> validate_format(:staff_id, ~r/^\d{6}$/, message: "must be a 6-digit number")
     |> unique_constraint(:staff_id)
@@ -53,7 +54,7 @@ defmodule Aipos.Accounts.User do
 
   def staff_update_changeset(user, attrs) do
     user
-    |> cast(attrs, [:name, :email, :role, :active, :staff_id])
+    |> cast(attrs, [:name, :email, :role, :active, :staff_id, :role_id])
     |> validate_required([:name, :email, :role, :staff_id])
     |> validate_format(:staff_id, ~r/^\d{6}$/, message: "must be a 6-digit number")
     |> unique_constraint(:staff_id)
@@ -192,5 +193,10 @@ defmodule Aipos.Accounts.User do
     else
       add_error(changeset, :current_password, "is not valid")
     end
+  end
+
+  def activate_changeset(user, attrs) do
+    user
+    |> cast(attrs, [:active])
   end
 end

@@ -23,11 +23,13 @@ import {LiveSocket} from "phoenix_live_view"
 import topbar from "../vendor/topbar"
 import BarcodeScanner from "./hooks/barcode_scanner"
 import { DailySalesChart, ProductsChart } from "./hooks/dashboard_charts"
+import OfflineSales from "./hooks/offline_sales"
 
 const Hooks = {
   BarcodeScanner,
   DailySalesChart,
-  ProductsChart
+  ProductsChart,
+  OfflineSales
 }
 
 let csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
@@ -50,3 +52,12 @@ liveSocket.connect()
 // >> liveSocket.enableLatencySim(1000)  // enabled for duration of browser session
 // >> liveSocket.disableLatencySim()
 window.liveSocket = liveSocket
+
+// Register service worker for PWA / offline support
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(err => {
+      console.error('Service worker registration failed:', err)
+    })
+  })
+}

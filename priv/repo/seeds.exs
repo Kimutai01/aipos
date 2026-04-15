@@ -1,3 +1,96 @@
+alias Aipos.Repo
+alias Aipos.Accounts.{Role, Permission, RolePermission}
+
+# Seed permissions
+permissions_data = [
+  %{name: "dashboard:view", description: "View dashboard", category: "dashboard"},
+  %{name: "sales:view", description: "View sales history", category: "sales"},
+  %{name: "sales:create", description: "Create/process sales", category: "sales"},
+  %{name: "products:view", description: "View products", category: "products"},
+  %{name: "products:manage", description: "Create/edit/delete products", category: "products"},
+  %{name: "customers:view", description: "View customers", category: "customers"},
+  %{name: "customers:manage", description: "Create/edit customers", category: "customers"},
+  %{name: "suppliers:view", description: "View suppliers", category: "suppliers"},
+  %{name: "suppliers:manage", description: "Create/edit suppliers", category: "suppliers"},
+  %{name: "registers:view", description: "View registers", category: "registers"},
+  %{name: "registers:manage", description: "Create/edit registers", category: "registers"},
+  %{name: "users:view", description: "View staff/users", category: "users"},
+  %{name: "users:manage", description: "Create/edit/deactivate users", category: "users"},
+  %{name: "analytics:view", description: "View analytics and reports", category: "analytics"},
+  %{name: "organizations:manage", description: "Manage organization settings", category: "organizations"},
+  %{name: "receipt_settings:manage", description: "Manage receipt settings", category: "settings"}
+]
+
+permissions =
+  Enum.map(permissions_data, fn attrs ->
+    case Repo.get_by(Permission, name: attrs.name) do
+      nil ->
+        {:ok, p} =
+          %Permission{}
+          |> Permission.changeset(attrs)
+          |> Repo.insert()
+        p
+      existing -> existing
+    end
+  end)
+
+perm_map = Map.new(permissions, fn p -> {p.name, p.id} end)
+
+# Seed roles with their permissions
+roles_data = [
+  {
+    %{name: "system_admin", description: "Full system access — manages all organizations and users"},
+    :all
+  },
+  {
+    %{name: "org_admin", description: "Organization administrator — manages org users, products, settings"},
+    [
+      "dashboard:view", "sales:view", "sales:create",
+      "products:view", "products:manage",
+      "customers:view", "customers:manage",
+      "suppliers:view", "suppliers:manage",
+      "registers:view", "registers:manage",
+      "users:view", "users:manage",
+      "analytics:view", "organizations:manage",
+      "receipt_settings:manage"
+    ]
+  },
+  {
+    %{name: "cashier", description: "Point of sale cashier — processes sales"},
+    [
+      "dashboard:view", "sales:view", "sales:create",
+      "products:view", "customers:view", "registers:view"
+    ]
+  }
+]
+
+Enum.each(roles_data, fn {role_attrs, perm_names} ->
+  role =
+    case Repo.get_by(Role, name: role_attrs.name) do
+      nil ->
+        {:ok, r} =
+          %Role{}
+          |> Role.changeset(role_attrs)
+          |> Repo.insert()
+        r
+      existing -> existing
+    end
+
+  perms_to_assign =
+    case perm_names do
+      :all -> Map.values(perm_map)
+      names -> Enum.map(names, &Map.fetch!(perm_map, &1))
+    end
+
+  Enum.each(perms_to_assign, fn permission_id ->
+    %RolePermission{}
+    |> RolePermission.changeset(%{role_id: role.id, permission_id: permission_id})
+    |> Repo.insert(on_conflict: :nothing)
+  end)
+end)
+
+IO.puts("Seeded roles and permissions successfully.")
+
 # In your project's priv/repo/seeds.exs file
 
 # Script for populating the database. You can run it as:

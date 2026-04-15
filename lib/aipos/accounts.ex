@@ -6,7 +6,7 @@ defmodule Aipos.Accounts do
   import Ecto.Query, warn: false
   alias Aipos.Repo
 
-  alias Aipos.Accounts.{User, UserToken, UserNotifier}
+  alias Aipos.Accounts.{User, UserToken, UserNotifier, Role, Permission, RolePermission}
 
   ## Database getters
 
@@ -377,5 +377,103 @@ defmodule Aipos.Accounts do
       {:ok, %{user: user}} -> {:ok, user}
       {:error, :user, changeset, _} -> {:error, changeset}
     end
+  end
+
+  ## Roles
+
+  def list_roles do
+    Repo.all(Role)
+  end
+
+  def get_role!(id), do: Repo.get!(Role, id)
+
+  def get_role_by_name(name) do
+    Repo.get_by(Role, name: name)
+  end
+
+  def get_role_with_permissions(id) do
+    Role
+    |> Repo.get!(id)
+    |> Repo.preload(:permissions)
+  end
+
+  def create_role(attrs \\ %{}) do
+    %Role{}
+    |> Role.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  def update_role(role, attrs) do
+    role
+    |> Role.changeset(attrs)
+    |> Repo.update()
+  end
+
+  ## Permissions
+
+  def list_permissions do
+    Repo.all(Permission)
+  end
+
+  def create_permission(attrs \\ %{}) do
+    %Permission{}
+    |> Permission.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  ## Role Permissions
+
+  def assign_permission_to_role(role_id, permission_id) do
+    %RolePermission{}
+    |> RolePermission.changeset(%{role_id: role_id, permission_id: permission_id})
+    |> Repo.insert(on_conflict: :nothing)
+  end
+
+  ## Users - Staff management
+
+  def list_users_for_org(organization_id) do
+    User
+    |> where([u], u.organization_id == ^organization_id)
+    |> order_by([u], [asc: u.name])
+    |> Repo.all()
+    |> Repo.preload(:role_ref)
+  end
+
+  def list_all_users do
+    User
+    |> order_by([u], [asc: u.name])
+    |> Repo.all()
+    |> Repo.preload([:role_ref, :organization])
+  end
+
+  def update_user(user, attrs) do
+    user
+    |> User.staff_update_changeset(attrs)
+    |> Repo.update()
+  end
+
+  def delete_user(user) do
+    Repo.delete(user)
+  end
+
+  def toggle_user_active(user) do
+    user
+    |> User.activate_changeset(%{active: !user.active})
+    |> Repo.update()
+  end
+
+  def change_staff_registration(user \\ %User{}) do
+    User.staff_registration_changeset(user, %{})
+  end
+
+  def change_user(user \\ %User{}) do
+    User.staff_update_changeset(user, %{})
+  end
+
+  def assign_role_to_user(user, role_id) do
+    import Ecto.Changeset
+    user
+    |> change(%{role_id: role_id})
+    |> Repo.update()
   end
 end

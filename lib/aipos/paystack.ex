@@ -2,7 +2,7 @@ defmodule Aipos.Paystack do
   @moduledoc """
   The Paystack module is responsible for all interactions with the Paystack API
   """
-  
+
   defp api_url, do: "https://api.paystack.co/transaction/initialize"
 
   defp paystack_headers do
@@ -26,7 +26,6 @@ defmodule Aipos.Paystack do
     - {:error, reason} on failure
   """
   def initialize(email, amount, transaction_id, callback_url) do
-    # Convert amount to kobo (Paystack expects amount in smallest currency unit)
     amount_in_kobo = Decimal.to_float(amount) * 100 |> trunc()
 
     paystack_body =

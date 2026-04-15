@@ -1,6 +1,8 @@
 defmodule AiposWeb.Sidebar do
   use AiposWeb, :live_component
 
+  alias Aipos.Accounts.Authorization
+
   def render(assigns) do
     ~H"""
     <aside
@@ -38,264 +40,171 @@ defmodule AiposWeb.Sidebar do
             <p class="text-sm text-gray-400">POS System</p>
           </div>
         </div>
-        
-    <!-- Navigation Links -->
+
+        <!-- Navigation Links -->
         <div class="flex-grow py-4">
           <p class="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
             Main Menu
           </p>
           <ul class="space-y-1">
-            <li>
-              <a
-                href="/dashboard"
-                class={
-                  active_class(
-                    @active_page == "dashboard",
-                    "flex items-center py-2 px-4 text-white hover:bg-gray-700 rounded-lg"
-                  )
-                }
-              >
-                <Heroicons.icon name="home" type="solid" class="h-5 w-5 mr-3 text-blue-400" />
-                <span>Dashboard</span>
-              </a>
-            </li>
-
-            <li>
-              <a
-                href="/start_sale"
-                class={
-                  active_class(
-                    @active_page == "new_session",
-                    "flex items-center py-2 px-4 text-white hover:bg-gray-700 rounded-lg"
-                  )
-                }
-              >
-                <Heroicons.icon name="play" type="solid" class="h-5 w-5 mr-3 text-green-400" />
-                <span>Start Sale Session</span>
-              </a>
-            </li>
-            <!-- Add this after the "Inventory" item and before the "Management" section -->
-            <li>
-              <a
-                href="/customers"
-                class={
-                  active_class(
-                    @active_page == "customers",
-                    "flex items-center py-2 px-4 text-white hover:bg-gray-700 rounded-lg"
-                  )
-                }
-              >
-                <Heroicons.icon name="user-group" type="solid" class="h-5 w-5 mr-3 text-teal-400" />
-                <span>Customers</span>
-              </a>
-            </li>
-
-            <li>
-              <a
-                href="/suppliers"
-                class={
-                  active_class(
-                    @active_page == "suppliers",
-                    "flex items-center py-2 px-4 text-white hover:bg-gray-700 rounded-lg"
-                  )
-                }
-              >
-                <Heroicons.icon name="truck" type="solid" class="h-8 w- mr-3 text-emerald-400" />
-                <span>Suppliers</span>
-              </a>
-            </li>
-
-            <%!-- <li>
-              <a
-                href="/cash_management"
-                class={
-                  active_class(
-                    @active_page == "cash_management",
-                    "flex items-center py-2 px-4 text-white hover:bg-gray-700 rounded-lg"
-                  )
-                }
-              >
-                <Heroicons.icon name="banknotes" type="solid" class="h-5 w-5 mr-3 text-green-400" />
-                <span>Cash Management</span>
-              </a>
-            </li> --%>
-
-            <li>
-              <a
-                href="/sales"
-                class={
-                  active_class(
-                    @active_page == "sales",
-                    "flex items-center py-2 px-4 text-white hover:bg-gray-700 rounded-lg"
-                  )
-                }
-              >
-                <Heroicons.icon
-                  name="shopping-cart"
-                  type="solid"
-                  class="h-5 w-5 mr-3 text-yellow-400"
-                />
-                <span>Sales</span>
-              </a>
-            </li>
-
-            <li>
-              <a
-                href="/products"
-                class={
-                  active_class(
-                    @active_page == "products",
-                    "flex items-center py-2 px-4 text-white hover:bg-gray-700 rounded-lg"
-                  )
-                }
-              >
-                <Heroicons.icon name="cube" type="solid" class="h-5 w-5 mr-3 text-purple-400" />
-                <span>Products</span>
-              </a>
-            </li>
-
-            <%!-- <li>
-              <a
-                href="/inventory"
-                class={
-                  active_class(
-                    @active_page == "inventory",
-                    "flex items-center py-2 px-4 text-white hover:bg-gray-700 rounded-lg"
-                  )
-                }
-              >
-                <Heroicons.icon
-                  name="clipboard-document-list"
-                  type="solid"
-                  class="h-5 w-5 mr-3 text-pink-400"
-                />
-                <span>Inventory</span>
-              </a>
-            </li> --%>
-          </ul>
-
-          <p class="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider mt-6 mb-2">
-            Management
-          </p>
-          <ul class="space-y-1">
-            <%!-- <li>
-              <a
-                href="/manage_users"
-                class={
-                  active_class(
-                    @active_page == "users",
-                    "flex items-center py-2 px-4 text-white hover:bg-gray-700 rounded-lg"
-                  )
-                }
-              >
-                <Heroicons.icon name="users" type="solid" class="h-5 w-5 mr-3 text-indigo-400" />
-                <span>Staff</span>
-              </a>
-            </li> --%>
-
-            <%!-- <li>
-              <a
-                href="/reports"
-                class={
-                  active_class(
-                    @active_page == "reports",
-                    "flex items-center py-2 px-4 text-white hover:bg-gray-700 rounded-lg"
-                  )
-                }
-              >
-                <Heroicons.icon name="chart-bar" type="solid" class="h-5 w-5 mr-3 text-red-400" />
-                <span>Reports</span>
-              </a>
-            </li> --%>
-
-            <li>
-              <a
-                href="/registers"
-                class={
-                  active_class(
-                    @active_page == "registers",
-                    "flex items-center py-2 px-4 text-white hover:bg-gray-700 rounded-lg"
-                  )
-                }
-              >
-                <Heroicons.icon
-                  name="computer-desktop"
-                  type="solid"
-                  class="h-5 w-5 mr-3 text-gray-400"
-                />
-                <span>Registers</span>
-              </a>
-            </li>
-
-            <%= if @current_organization do %>
+            <%= if Authorization.has_permission?(@current_user, "dashboard:view") do %>
               <li>
                 <a
-                  href={"/organizations/#{@current_organization.id}/edit"}
-                  class={
-                    active_class(
-                      @active_page == "organization_settings",
-                      "flex items-center py-2 px-4 text-white hover:bg-gray-700 rounded-lg"
-                    )
-                  }
+                  href="/dashboard"
+                  class={active_class(@active_page == "dashboard", "flex items-center py-2 px-4 text-white hover:bg-gray-700 rounded-lg")}
                 >
-                  <Heroicons.icon name="building-storefront" type="solid" class="h-5 w-5 mr-3 text-orange-400" />
-                  <span>Organization Settings</span>
-                </a>
-              </li>
-
-              <li>
-                <a
-                  href="/receipt_settings"
-                  class={
-                    active_class(
-                      @active_page == "receipt_settings",
-                      "flex items-center py-2 px-4 text-white hover:bg-gray-700 rounded-lg"
-                    )
-                  }
-                >
-                  <Heroicons.icon name="receipt-percent" type="solid" class="h-5 w-5 mr-3 text-pink-400" />
-                  <span>Receipt Settings</span>
+                  <Heroicons.icon name="home" type="solid" class="h-5 w-5 mr-3 text-blue-400" />
+                  <span>Dashboard</span>
                 </a>
               </li>
             <% end %>
 
-            <%!-- <li>
-              <a
-                href="/settings"
-                class={
-                  active_class(
-                    @active_page == "settings",
-                    "flex items-center py-2 px-4 text-white hover:bg-gray-700 rounded-lg"
-                  )
-                }
-              >
-                <Heroicons.icon name="cog-6-tooth" type="solid" class="h-5 w-5 mr-3 text-gray-400" />
-                <span>Settings</span>
-              </a>
-            </li> --%>
+            <%= if Authorization.has_permission?(@current_user, "sales:create") do %>
+              <li>
+                <a
+                  href="/start_sale"
+                  class={active_class(@active_page == "new_session", "flex items-center py-2 px-4 text-white hover:bg-gray-700 rounded-lg")}
+                >
+                  <Heroicons.icon name="play" type="solid" class="h-5 w-5 mr-3 text-green-400" />
+                  <span>Start Sale Session</span>
+                </a>
+              </li>
+            <% end %>
+
+            <%= if Authorization.has_permission?(@current_user, "customers:view") do %>
+              <li>
+                <a
+                  href="/customers"
+                  class={active_class(@active_page == "customers", "flex items-center py-2 px-4 text-white hover:bg-gray-700 rounded-lg")}
+                >
+                  <Heroicons.icon name="user-group" type="solid" class="h-5 w-5 mr-3 text-teal-400" />
+                  <span>Customers</span>
+                </a>
+              </li>
+            <% end %>
+
+            <%= if Authorization.has_permission?(@current_user, "suppliers:view") do %>
+              <li>
+                <a
+                  href="/suppliers"
+                  class={active_class(@active_page == "suppliers", "flex items-center py-2 px-4 text-white hover:bg-gray-700 rounded-lg")}
+                >
+                  <Heroicons.icon name="truck" type="solid" class="h-8 w-8 mr-3 text-emerald-400" />
+                  <span>Suppliers</span>
+                </a>
+              </li>
+            <% end %>
+
+            <%= if Authorization.has_permission?(@current_user, "sales:view") do %>
+              <li>
+                <a
+                  href="/sales"
+                  class={active_class(@active_page == "sales", "flex items-center py-2 px-4 text-white hover:bg-gray-700 rounded-lg")}
+                >
+                  <Heroicons.icon name="shopping-cart" type="solid" class="h-5 w-5 mr-3 text-yellow-400" />
+                  <span>Sales</span>
+                </a>
+              </li>
+            <% end %>
+
+            <%= if Authorization.has_permission?(@current_user, "products:view") do %>
+              <li>
+                <a
+                  href="/products"
+                  class={active_class(@active_page == "products", "flex items-center py-2 px-4 text-white hover:bg-gray-700 rounded-lg")}
+                >
+                  <Heroicons.icon name="cube" type="solid" class="h-5 w-5 mr-3 text-purple-400" />
+                  <span>Products</span>
+                </a>
+              </li>
+            <% end %>
           </ul>
+
+          <!-- Management Section (admin+ only) -->
+          <%= if Authorization.has_any_permission?(@current_user, ["users:view", "registers:view", "organizations:manage", "receipt_settings:manage", "analytics:view"]) do %>
+            <p class="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider mt-6 mb-2">
+              Management
+            </p>
+            <ul class="space-y-1">
+              <%= if Authorization.has_permission?(@current_user, "analytics:view") do %>
+                <li>
+                  <a
+                    href="/dashboard"
+                    class={active_class(@active_page == "analytics", "flex items-center py-2 px-4 text-white hover:bg-gray-700 rounded-lg")}
+                  >
+                    <Heroicons.icon name="chart-bar" type="solid" class="h-5 w-5 mr-3 text-red-400" />
+                    <span>Analytics</span>
+                  </a>
+                </li>
+              <% end %>
+
+              <%= if Authorization.has_permission?(@current_user, "users:view") do %>
+                <li>
+                  <a
+                    href="/manage_users"
+                    class={active_class(@active_page == "users", "flex items-center py-2 px-4 text-white hover:bg-gray-700 rounded-lg")}
+                  >
+                    <Heroicons.icon name="users" type="solid" class="h-5 w-5 mr-3 text-indigo-400" />
+                    <span>Staff</span>
+                  </a>
+                </li>
+              <% end %>
+
+              <%= if Authorization.has_permission?(@current_user, "registers:view") do %>
+                <li>
+                  <a
+                    href="/registers"
+                    class={active_class(@active_page == "registers", "flex items-center py-2 px-4 text-white hover:bg-gray-700 rounded-lg")}
+                  >
+                    <Heroicons.icon name="computer-desktop" type="solid" class="h-5 w-5 mr-3 text-gray-400" />
+                    <span>Registers</span>
+                  </a>
+                </li>
+              <% end %>
+
+              <%= if @current_organization && Authorization.has_permission?(@current_user, "organizations:manage") do %>
+                <li>
+                  <a
+                    href={"/organizations/#{@current_organization.id}/edit"}
+                    class={active_class(@active_page == "organization_settings", "flex items-center py-2 px-4 text-white hover:bg-gray-700 rounded-lg")}
+                  >
+                    <Heroicons.icon name="building-storefront" type="solid" class="h-5 w-5 mr-3 text-orange-400" />
+                    <span>Organization Settings</span>
+                  </a>
+                </li>
+              <% end %>
+
+              <%= if Authorization.has_permission?(@current_user, "receipt_settings:manage") do %>
+                <li>
+                  <a
+                    href="/receipt_settings"
+                    class={active_class(@active_page == "receipt_settings", "flex items-center py-2 px-4 text-white hover:bg-gray-700 rounded-lg")}
+                  >
+                    <Heroicons.icon name="receipt-percent" type="solid" class="h-5 w-5 mr-3 text-pink-400" />
+                    <span>Receipt Settings</span>
+                  </a>
+                </li>
+              <% end %>
+            </ul>
+          <% end %>
         </div>
-        
-    <!-- User Profile & Logout -->
+
+        <!-- User Profile & Logout -->
         <div class="p-4 border-t border-gray-700">
           <div class="flex items-center mb-4">
             <div class="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-lg font-medium mr-3">
               {String.first(@current_user.email || "U")}
             </div>
             <div>
-              <p class="font-medium">{@current_user.email}</p>
-              <p class="text-xs text-gray-400">Admin</p>
+              <p class="font-medium text-sm truncate">{@current_user.email}</p>
+              <p class="text-xs text-gray-400">{role_display(@current_user)}</p>
             </div>
           </div>
           <a
             href="/users/log_out"
             class="flex items-center py-2 px-4 text-white hover:bg-gray-700 rounded-lg w-full"
           >
-            <Heroicons.icon
-              name="arrow-right-on-rectangle"
-              type="solid"
-              class="h-5 w-5 mr-3 text-red-400"
-            />
+            <Heroicons.icon name="arrow-right-on-rectangle" type="solid" class="h-5 w-5 mr-3 text-red-400" />
             <span>Sign Out</span>
           </a>
         </div>
@@ -304,7 +213,14 @@ defmodule AiposWeb.Sidebar do
     """
   end
 
-  # Helper function to apply active styles
   defp active_class(true, base_class), do: "#{base_class} bg-gray-700 font-medium"
   defp active_class(false, base_class), do: base_class
+
+  defp role_display(%{role_ref: %{name: name}}) when not is_nil(name) do
+    name |> String.replace("_", " ") |> String.split() |> Enum.map(&String.capitalize/1) |> Enum.join(" ")
+  end
+  defp role_display(%{role: role}) when not is_nil(role) do
+    role |> String.replace("_", " ") |> String.split() |> Enum.map(&String.capitalize/1) |> Enum.join(" ")
+  end
+  defp role_display(_), do: "User"
 end

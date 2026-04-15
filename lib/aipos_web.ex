@@ -17,7 +17,7 @@ defmodule AiposWeb do
   those modules here.
   """
 
-  def static_paths, do: ~w(assets fonts uploads images favicon.ico robots.txt)
+  def static_paths, do: ~w(assets fonts uploads images favicon.ico robots.txt sw.js manifest.json offline.html)
 
   def router do
     quote do

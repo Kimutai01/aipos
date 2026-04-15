@@ -43,6 +43,7 @@ defmodule AiposWeb.Live.Sale.Start do
       |> assign(:payment_error, nil)
       |> assign(:show_receipt_modal, false)
       |> assign(:completed_sale, nil)
+      |> assign(:pending_sales_count, 0)
 
     if connected?(socket), do: Process.send_after(self(), :check_scanner, 1000)
 
@@ -186,11 +187,14 @@ defmodule AiposWeb.Live.Sale.Start do
         cart_items = add_to_cart(socket.assigns.cart_items, product_sku)
         total = calculate_total(cart_items)
 
-        {:noreply,
-         socket
-         |> assign(:cart_items, cart_items)
-         |> assign(:total_amount, total)
-         |> assign(:barcode, "")}
+        socket =
+          socket
+          |> assign(:cart_items, cart_items)
+          |> assign(:total_amount, total)
+          |> assign(:barcode, "")
+          |> push_cart_state()
+
+        {:noreply, socket}
     end
   end
 
@@ -225,7 +229,8 @@ defmodule AiposWeb.Live.Sale.Start do
      |> assign(:cart_items, cart_items)
      |> assign(:total_amount, total)
      |> assign(:search_query, "")
-     |> assign(:search_results, [])}
+     |> assign(:search_results, [])
+     |> push_cart_state()}
   end
 
   def handle_event("remove_item", %{"index" => index}, socket) do
@@ -236,7 +241,8 @@ defmodule AiposWeb.Live.Sale.Start do
     {:noreply,
      socket
      |> assign(:cart_items, cart_items)
-     |> assign(:total_amount, total)}
+     |> assign(:total_amount, total)
+     |> push_cart_state()}
   end
 
   def handle_event("update_quantity", %{"index" => index, "quantity" => quantity}, socket) do
@@ -254,7 +260,8 @@ defmodule AiposWeb.Live.Sale.Start do
     {:noreply,
      socket
      |> assign(:cart_items, cart_items)
-     |> assign(:total_amount, total)}
+     |> assign(:total_amount, total)
+     |> push_cart_state()}
   end
 
   def handle_event("toggle_scanner_mode", _, socket) do
@@ -535,6 +542,24 @@ defmodule AiposWeb.Live.Sale.Start do
     {:noreply, push_event(socket, "print_receipt", %{})}
   end
 
+  def handle_event("pending_sales_count", %{"count" => count}, socket) do
+    {:noreply, assign(socket, :pending_sales_count, count)}
+  end
+
+  def handle_event("sync_complete", %{"synced" => synced, "failed" => failed}, socket) do
+    socket =
+      if synced > 0,
+        do: put_flash(socket, :info, "#{synced} offline sale(s) synced successfully!"),
+        else: socket
+
+    socket =
+      if failed > 0,
+        do: put_flash(socket, :error, "#{failed} offline sale(s) failed to sync."),
+        else: socket
+
+    {:noreply, socket}
+  end
+
   @impl true
   def handle_info(:check_scanner, socket) do
     # In a real app, you might check for connected scanners
@@ -543,6 +568,27 @@ defmodule AiposWeb.Live.Sale.Start do
   end
 
   # Helper functions
+
+  defp push_cart_state(socket) do
+    cart_data = %{
+      cart_items:
+        Enum.map(socket.assigns.cart_items, fn item ->
+          %{
+            sku_id: item.sku_id,
+            name: item.name,
+            price: Decimal.to_string(item.price),
+            quantity: item.quantity,
+            subtotal: Decimal.to_string(item.subtotal)
+          }
+        end),
+      total_amount: Decimal.to_string(socket.assigns.total_amount),
+      register_id: socket.assigns.selected_register && socket.assigns.selected_register.id,
+      organization_id: socket.assigns.current_user.organization_id,
+      customer_id: socket.assigns.customer && socket.assigns.customer.id
+    }
+
+    push_event(socket, "cart_state", cart_data)
+  end
 
   defp get_organization(user) do
     Aipos.Organizations.get_organization!(user.organization_id)
@@ -654,6 +700,17 @@ defmodule AiposWeb.Live.Sale.Start do
   @impl true
   def render(assigns) do
     ~H"""
+    <div id="offline-manager" phx-hook="OfflineSales">
+      <%!-- Offline banner - shown via CSS when phx-disconnected is on body --%>
+      <div class="offline-only fixed top-0 left-0 right-0 z-50 items-center justify-center bg-yellow-500 text-white text-center py-2 text-sm font-semibold">
+        You're offline — cash sales can be saved locally and will sync when you reconnect.
+      </div>
+
+      <%!-- Offline save confirmation --%>
+      <div id="offline-saved-banner" class="hidden fixed top-0 left-0 right-0 z-50 items-center justify-center bg-green-500 text-white text-center py-2 text-sm font-semibold">
+        Sale saved offline. It will sync automatically when you reconnect.
+      </div>
+
     <div class="flex h-screen bg-gray-100" id="sale-container" phx-hook="BarcodeScanner">
       <.live_component
         module={AiposWeb.Sidebar}
@@ -728,6 +785,14 @@ defmodule AiposWeb.Live.Sale.Start do
                     <Heroicons.icon name="exclamation-triangle" class="h-3 w-3 inline" /> Drawer Open
                   </span>
                 <% end %>
+
+                <span
+                  id="pending-sales-badge"
+                  style="display: none"
+                  class="text-xs bg-orange-100 text-orange-800 rounded-full px-3 py-1"
+                >
+                  <Heroicons.icon name="arrow-path" class="h-3 w-3 inline" /> pending sync
+                </span>
               </div>
             </div>
           </header>
@@ -892,6 +957,14 @@ defmodule AiposWeb.Live.Sale.Start do
                       class="flex-1 py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
                     >
                       <Heroicons.icon name="trash" class="h-4 w-4 inline mr-1" /> Clear Cart
+                    </button>
+                    <%!-- Save offline button — only shown when phx-disconnected (offline) via CSS --%>
+                    <button
+                      type="button"
+                      onclick="window.saveOfflineSale()"
+                      class="offline-only flex-1 py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-yellow-600 hover:bg-yellow-700"
+                    >
+                      <Heroicons.icon name="arrow-down-tray" class="h-4 w-4 inline mr-1" /> Save Offline
                     </button>
                     <button
                       type="button"
@@ -1425,6 +1498,7 @@ defmodule AiposWeb.Live.Sale.Start do
           </div>
         </div>
       <% end %>
+    </div>
     </div>
     """
   end

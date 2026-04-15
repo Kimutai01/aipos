@@ -9,3 +9,7 @@ body{
 }
 
 /* This file is for your main application CSS */
+
+/* Offline UI — shown when LiveView socket disconnects */
+.offline-only { display: none; }
+body.phx-disconnected .offline-only { display: flex; }

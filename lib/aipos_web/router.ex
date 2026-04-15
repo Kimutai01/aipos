@@ -80,6 +80,9 @@ defmodule AiposWeb.Router do
   scope "/", AiposWeb do
     pipe_through [:browser, :require_authenticated_user]
 
+    post "/sales/sync", SaleSyncController, :sync
+    get "/api/products/sync", ProductsSyncController, :index
+
     live_session :require_authenticated_user,
       on_mount: [
         {AiposWeb.UserAuth, :ensure_authenticated},
